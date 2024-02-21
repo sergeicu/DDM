@@ -68,6 +68,8 @@ if __name__ == "__main__":
         diffusion.feed_data(val_data)
         diffusion.test(continous=True)
         time2 = time.time()
+        
+        # sv407 - i will need to implement some functionality here that outputs actual nifti images that i can use for comparison... 
 
         visuals = diffusion.get_current_data()
         defm_frames = visuals['deform'].squeeze().numpy().transpose(0, 2, 3, 1)[1:]
@@ -113,6 +115,8 @@ if __name__ == "__main__":
             savePath = os.path.join(result_path, '%s_code%d.png' % (dataName, iframe+1))
             save_image(code_frames[iframe][:, :, dpt]*255, savePath)
         registTime.append(time2 - time1)
+        print(f"Saved to: {savePath}")
+        from IPython import embed; embed()
 
     omdice, osdice = np.mean(originDice), np.std(originDice)
     mdice, sdice = np.mean(registDice), np.std(registDice)
