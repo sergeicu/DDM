@@ -77,7 +77,7 @@ def noise_like(shape, device, repeat=False): # sv407WARNING - completely unused 
 class GaussianDiffusion(nn.Module):
     def __init__(
         self,
-        diffusion_module, deformation_module,
+        diffusion_module, # deformation_module,
         channels=3,
         loss_type='l1',
         conditional=True,
@@ -86,7 +86,7 @@ class GaussianDiffusion(nn.Module):
         super().__init__()
         self.channels = channels
         self.denoise_fn = diffusion_module
-        self.field_fn = deformation_module
+        #self.field_fn = deformation_module
         self.conditional = conditional
         self.loss_type = loss_type
         if schedule_opt is not None: # sv407
@@ -185,6 +185,8 @@ class GaussianDiffusion(nn.Module):
         return model_mean, posterior_variance, posterior_log_variance
 
     # @torch.no_grad()
+    
+    # CHANGE THIS later.... for inferrence only
     def p_sample_loop(self, x_in, nsample, continous=False):
         device = self.betas.device
         S = x_in[:, :1]
@@ -234,26 +236,30 @@ class GaussianDiffusion(nn.Module):
         )
 
     def p_losses(self, x_in, loss_lambda, noise=None):
-        # sv407 - this is where most of the logic of the network is happening (where most changes were made)
-        x_start = x_in['T']
-        [b, c, d, h, w] = x_start.shape
-        t = torch.randint(0, self.num_timesteps, (b,), device=x_start.device).long()  # sv407 - this defines a range of t-s. I should check what these are
-        noise = default(noise, lambda: torch.randn_like(x_start)) # sv407 - this is just random noise
-        x_t = self.q_sample(x_start=x_start, t=t, noise=noise) # sv407 - here is where we add noise to our picture for t=T
+        [b, c, d, h, w] = x_in['S'].shape
+        t = torch.randint(0, self.num_timesteps, (b,), device=x_in['S'].device).long()  # sv407 - this defines a range of t-s. I should check what these are
+        noise = default(noise, lambda: torch.randn_like(x_start)) # CHANGETHIS
+        S_i = self.q_sample(x_start=x_in['S'], t=t, noise=noise) # sv407 - here is where we add noise to our picture for t=T
+        T_i = self.q_sample(x_start=x_in['T'], t=t, noise=noise) # sv407 - here is where we add noise to our picture for t=T
 
-        code = self.denoise_fn(torch.cat([x_in['S'], x_in['T'], x_t], dim=1), t)
+        noise_pred, flow = self.denoise_fn(torch.cat([S_i, T_i], dim=1), t)
 
-        l_pix = self.loss_func(noise, code) # sv407 - this is set to L2 loss (via config) - finds diff between noise and predicted noise...
+        l_pix = self.loss_func(noise, noise_pred) 
 
-        b, c, d, h, w = x_in['S'].shape
         l_pix = l_pix.sum() / int(b * c * d * h * w)
         #
-        output, flow = self.field_fn(torch.cat([x_in['S'], code], dim=1)) # sv407 - voxelmorph gets 'S' and the predicted noise from 'T' as inputs... I would change this value here 
-        l_sim = self.loss_ncc(output, x_in['T']) * loss_lambda # sv407 - we want the deformed 'S' and original 'T' to be as similar as possible after voxelmorph
-        l_smt = self.loss_reg(flow) * loss_lambda # sv407 - here we enforce smoothness during registration 
+        #output, flow = self.field_fn(torch.cat([x_in['S'], code], dim=1)) # sv407 - voxelmorph gets 'S' and the predicted noise from 'T' as inputs... I would change this value here 
+        
+        # CHANGE THIS - predict x_(t-1) here...
+        
+        # CHANGE THIS - is this correct field calculation? don't we want to take only the odd and only even lines?? 
+        S_i_reg = S_i * flow
+        
+        l_sim = self.loss_ncc(S_i_reg, T_i) * loss_lambda 
+        l_smt = self.loss_reg(flow) * loss_lambda 
 
         loss = l_pix + l_sim + l_smt
-        return [code, x_t], [l_pix, l_sim, l_smt, loss]
+        return [noise_pred], [l_pix, l_sim, l_smt, loss]
 
     def forward(self, x, loss_lambda, *args, **kwargs):
         return self.p_losses(x, loss_lambda, *args, **kwargs)
