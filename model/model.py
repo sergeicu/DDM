@@ -51,29 +51,30 @@ class DDPM(BaseModel):
 
     def optimize_parameters(self, wandb=None): # sv407 - this is the main function where forward prop + opt. gradients + losses are computed 
         self.optG.zero_grad()
-        score, loss = self.netG(self.data, self.loss_lambda)
-        self.score, self.pdata = score
+        image_out, losses = self.netG(self.data, self.loss_lambda)
+        
+        # unroll predicted images
+        noise_pred, field_pred, S_i_prev, T_i_prev = image_out
+        self.noise_pred = noise_pred
+        self.field_pred = field_pred
+        self.S_i_prev = S_i_prev
+        self.T_i_prev = T_i_prev
         
         # from IPython import embed; embed()
         
         if wandb is not None: 
-            wandb.log({"score_mean":torch.mean(score[0]),
-                       "pdata_mean":torch.mean(score[1]),
-                       "score_std":torch.std(score[0]),
-                       "pdata_std":torch.std(score[1])})
+            # wandb.log({"noise_pred":noise_pred,
+            #            "field_pred":field_pred,
+            #            "S_i_prev":S_i_prev,
+            #            "T_i_prev":T_i_prev})
             
-            wandb.log({"l_pix":loss[0],
-                       "l_sim":loss[1],
-                       "l_smt":loss[2],
-                       "l_tot":loss[3]})  
-            
-            wandb.log({"nS0":self.data['nS'][0],
-                       "nS1":self.data['nS'][1],
-                       "nS2":self.data['nS'][2],
-                       "nS3":self.data['nS'][3]})
+            wandb.log({"l_pix":losses[0],
+                       "l_sim":losses[1],
+                       "l_smt":losses[2],
+                       "l_tot":losses[3]})  
             
 
-        l_pix, l_sim, l_smt, l_tot = loss
+        l_pix, l_sim, l_smt, l_tot = losses
         l_tot.backward()
         self.optG.step()
 
@@ -83,6 +84,8 @@ class DDPM(BaseModel):
         self.log_dict['l_smt'] = l_smt.item()
         self.log_dict['l_tot'] = l_tot.item()
 
+
+    # CHANGE THIS - this is where we need to change how inferrence works...
     def test(self, continous=False):
         self.netG.eval()
         input = torch.cat([self.data['S'], self.data['T']], dim=1) # sv407WARNING - this is so at ods with training! why are we feeding S and T during INFERENCE but S + noisyT during training?? this does not make sense

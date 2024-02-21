@@ -103,7 +103,7 @@ class GaussianDiffusion(nn.Module):
         self.loss_reg = loss.gradientLoss("l2").to(device)
 
 
-    def set_new_noise_schedule(self, schedule_opt, device):  # sv407WARNING - completely unused function
+    def set_new_noise_schedule(self, schedule_opt, device):  
         to_torch = partial(torch.tensor, dtype=torch.float32, device=device)
         betas = make_beta_schedule(
             schedule=schedule_opt['schedule'],
@@ -237,29 +237,31 @@ class GaussianDiffusion(nn.Module):
 
     def p_losses(self, x_in, loss_lambda, noise=None):
         [b, c, d, h, w] = x_in['S'].shape
-        t = torch.randint(0, self.num_timesteps, (b,), device=x_in['S'].device).long()  # sv407 - this defines a range of t-s. I should check what these are
-        noise = default(noise, lambda: torch.randn_like(x_start)) # CHANGETHIS
-        S_i = self.q_sample(x_start=x_in['S'], t=t, noise=noise) # sv407 - here is where we add noise to our picture for t=T
-        T_i = self.q_sample(x_start=x_in['T'], t=t, noise=noise) # sv407 - here is where we add noise to our picture for t=T
+        t = torch.randint(0, self.num_timesteps, (b,), device=x_in['S'].device).long()  
+        noise = default(noise, lambda: torch.randn_like(x_in['S'])) 
+        S_i = self.q_sample(x_start=x_in['S'], t=t, noise=noise) 
+        T_i = self.q_sample(x_start=x_in['T'], t=t, noise=noise) 
 
-        noise_pred, flow = self.denoise_fn(torch.cat([S_i, T_i], dim=1), t)
+        noise_pred, flow = self.denoise_fn(torch.cat([x_in['S'], x_in['T'],S_i, T_i], dim=1), t)
 
         l_pix = self.loss_func(noise, noise_pred) 
 
         l_pix = l_pix.sum() / int(b * c * d * h * w)
-        #
-        #output, flow = self.field_fn(torch.cat([x_in['S'], code], dim=1)) # sv407 - voxelmorph gets 'S' and the predicted noise from 'T' as inputs... I would change this value here 
+
         
         # CHANGE THIS - predict x_(t-1) here...
+        S_i_prev = []
+        T_i_prev = []
         
         # CHANGE THIS - is this correct field calculation? don't we want to take only the odd and only even lines?? 
-        S_i_reg = S_i * flow
+        #S_i_reg = S_i * flow
+        S_i_prev_reg = S_i_prev * flow
         
-        l_sim = self.loss_ncc(S_i_reg, T_i) * loss_lambda 
+        l_sim = self.loss_ncc(S_i_prev_reg, T_i_prev) * loss_lambda 
         l_smt = self.loss_reg(flow) * loss_lambda 
 
         loss = l_pix + l_sim + l_smt
-        return [noise_pred], [l_pix, l_sim, l_smt, loss]
+        return [noise_pred, flow,S_i_prev, T_i_prev], [l_pix, l_sim, l_smt, loss]
 
     def forward(self, x, loss_lambda, *args, **kwargs):
         return self.p_losses(x, loss_lambda, *args, **kwargs)

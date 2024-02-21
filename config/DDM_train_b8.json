@@ -25,8 +25,8 @@
         "which_model_G": "ddpm",
         "finetune_norm": false,
         "unet": {
-            "in_channel": 3,
-            "out_channel": 1,
+            "in_channel": 4,
+            "out_channel": 2,
             "inner_channel": 8,
             "channel_multiplier": [1, 2, 4, 4],
             "attn_res": [10],

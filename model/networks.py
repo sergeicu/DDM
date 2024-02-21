@@ -97,17 +97,17 @@ def define_G(opt):
         image_size=model_opt['diffusion']['image_size']
     )
 
-    # sv407 - this is where we define Unet architecture for voxelmorph network - just the architecture
-    from .my_voxelmorph import registUnetBlock
-    deformaton_module = registUnetBlock(model_opt['field']['in_channel'],
-                           model_opt['field']['encoder_nc'],
-                           model_opt['field']['decoder_nc'])
+    # voxelmorph network
+    #from .my_voxelmorph import registUnetBlock
+    #deformaton_module = registUnetBlock(model_opt['field']['in_channel'],
+    #                       model_opt['field']['encoder_nc'],
+    #                       model_opt['field']['decoder_nc'])
     if opt['phase'] == 'train':
         schedule_opt = model_opt['beta_schedule']['train']
     else:
         schedule_opt = None
     netG = diffusion.GaussianDiffusion(
-        diffusion_module, deformaton_module,
+        diffusion_module, #deformaton_module,
         channels=model_opt['diffusion']['channels'],
         loss_type='l2',    # L1 or L2
         conditional=model_opt['diffusion']['conditional'],
@@ -115,7 +115,7 @@ def define_G(opt):
     )
     if opt['phase'] == 'train':
         init_weights(netG.denoise_fn, init_type='orthogonal')
-        init_weights(netG.field_fn, init_type='normal')
+        #init_weights(netG.field_fn, init_type='normal')
     if opt['gpu_ids'] and opt['distributed']:
         assert torch.cuda.is_available()
         netG = nn.DataParallel(netG)
