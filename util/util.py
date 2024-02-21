@@ -41,9 +41,11 @@ def diagnose_network(net, name='network'):
 
 
 def save_image(image_numpy, image_path):
-    # image_pil = Image.fromarray(image_numpy)
-    image_pil = scipy.misc.toimage(image_numpy)
-    image_pil.save(image_path)
+    if '_field.png' not in image_path:
+        # image_pil = Image.fromarray(image_numpy)
+        image_numpy_uint8 = (255 * (image_numpy - image_numpy.min()) / (image_numpy.max() - image_numpy.min())).astype(np.uint8)
+        image_pil = Image.fromarray(image_numpy_uint8)
+        image_pil.save(image_path)
 
 def info(object, spacing=10, collapse=1):
     """Print methods and doc strings.

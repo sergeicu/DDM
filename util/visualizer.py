@@ -75,9 +75,10 @@ class Visualizer():
             else:
                 idx = 1
                 for label, image_numpy in visuals.items():
-                    self.vis.image(image_numpy.transpose([2, 0, 1]), opts=dict(title=label),
-                                   win=self.display_id + idx)
-                    idx += 1
+                    if label != 'field':
+                        self.vis.image(image_numpy.transpose([2, 0, 1]), opts=dict(title=label),
+                                    win=self.display_id + idx)
+                        idx += 1
 
         if self.use_html and (save_result or not self.saved):  # save images to a html file
             self.saved = True
