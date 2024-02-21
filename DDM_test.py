@@ -12,7 +12,7 @@ import time
 from util.visualizer import Visualizer
 import torch.nn.functional as F
 from PIL import Image
-import nibabel as nib 
+import nibabel as nb 
 
 def save_image(image_numpy, image_path):
     image_pil = Image.fromarray(image_numpy.astype('uint8'))
@@ -60,6 +60,8 @@ if __name__ == "__main__":
     idx = 0
     result_path = '{}'.format(opt['path']['results'])
     os.makedirs(result_path, exist_ok=True)
+    
+    savecounter = 0
 
     for istep,  val_data in enumerate(test_loader):
         idx += 1
