@@ -11,6 +11,7 @@ import time
 from util.visualizer import Visualizer
 import torch.nn.functional as F
 from PIL import Image
+import nibabel as nb 
 
 def save_image(image_numpy, image_path):
     image_pil = Image.fromarray(image_numpy.astype('uint8'))
@@ -58,6 +59,8 @@ if __name__ == "__main__":
     idx = 0
     result_path = '{}'.format(opt['path']['results'])
     os.makedirs(result_path, exist_ok=True)
+    
+    savecounter = 0
 
     for istep,  val_data in enumerate(test_loader):
         idx += 1
@@ -101,19 +104,46 @@ if __name__ == "__main__":
         data_fixed = val_data['T'].squeeze().cpu().numpy().transpose(1, 2, 0)
         label_origin = val_data['SL'].squeeze().cpu().numpy()
         label_fixed = val_data['TL'].squeeze().cpu().numpy()
-
-        dpt = 12
-        savePath = os.path.join(result_path, '%s_mov.png' % (dataName))
-        save_image((data_origin[:,:,dpt]+1)/2.*255, savePath)
-        savePath = os.path.join(result_path, '%s_fix.png' % (dataName))
-        save_image((data_fixed[:,:,dpt]+1)/2.*255, savePath)
-        code_frames -= code_frames[-1][:,:,dpt].min()
-        code_frames /= code_frames[-1][:,:,dpt].max()
-        for iframe in range(code_frames.shape[0]):
-            savePath = os.path.join(result_path, '%s_frame%d.png' % (dataName, iframe+1))
-            save_image(defm_frames[iframe][:,:,dpt]*255, savePath)
-            savePath = os.path.join(result_path, '%s_code%d.png' % (dataName, iframe+1))
-            save_image(code_frames[iframe][:, :, dpt]*255, savePath)
+        
+        save_examples=1
+        save_to_nifti=True
+        save_to_png=False
+        if save_to_nifti:
+            savecounter += 1
+            if savecounter == save_examples: 
+                break 
+            
+            data_origino = nb.Nifti1Image(data_origin,np.eye(4))
+            data_fixedo = nb.Nifti1Image(data_fixed,np.eye(4))
+            label_origino = nb.Nifti1Image(label_origin,np.eye(4))
+            label_fixedo = nb.Nifti1Image(label_fixed,np.eye(4))
+            code_frameo = nb.Nifti1Image(np.moveaxis(code_frames, 0,-1),np.eye(4))
+            defm_frameo = nb.Nifti1Image(np.moveaxis(defm_frames,0,-1),np.eye(4))
+            
+            nb.save(data_origino,os.path.join(result_path, '%s_mov.nii.gz' % (dataName)))
+            nb.save(data_fixedo,os.path.join(result_path, '%s_fix.nii.gz' % (dataName)))
+            nb.save(label_origino,os.path.join(result_path, '%s_mov_label.nii.gz' % (dataName)))
+            nb.save(label_fixedo,os.path.join(result_path, '%s_fix_label.nii.gz' % (dataName)))
+            nb.save(code_frameo,os.path.join(result_path, '%s_scores.nii.gz' % (dataName)))
+            nb.save(defm_frameo,os.path.join(result_path, '%s_moved.nii.gz' % (dataName)))
+        
+        
+            print(f"Saved to: {result_path}")
+            
+        if save_to_png:
+            dpt = 12 # this is datapoint - refers to slice number
+            savePath = os.path.join(result_path, '%s_mov.png' % (dataName))
+            save_image((data_origin[:,:,dpt]+1)/2.*255, savePath)
+            savePath = os.path.join(result_path, '%s_fix.png' % (dataName))
+            save_image((data_fixed[:,:,dpt]+1)/2.*255, savePath)
+            code_frames -= code_frames[-1][:,:,dpt].min()
+            code_frames /= code_frames[-1][:,:,dpt].max()
+            for iframe in range(code_frames.shape[0]):
+                savePath = os.path.join(result_path, '%s_frame%d.png' % (dataName, iframe+1))
+                save_image(defm_frames[iframe][:,:,dpt]*255, savePath)
+                savePath = os.path.join(result_path, '%s_code%d.png' % (dataName, iframe+1))
+                save_image(code_frames[iframe][:, :, dpt]*255, savePath)
+                
         registTime.append(time2 - time1)
         print(f"Saved to: {savePath}")
         from IPython import embed; embed()
