@@ -10,6 +10,8 @@ from math import *
 import time
 from util.visualizer import Visualizer
 
+import wandb
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str, default='config/DDM_train.json',
@@ -18,6 +20,13 @@ if __name__ == "__main__":
                         help='Run either train(training) or test(generation)', default='train')
     parser.add_argument('-gpu', '--gpu_ids', type=str, default=None)
     parser.add_argument('-debug', '-d', action='store_true')
+    
+    
+    parser.add_argument('--nowandb', action="store_true", help="skip weights and biases logging")    
+    parser.add_argument('--name', type=str, default=None, help="weights and biases run name")
+    parser.add_argument('--project', type=str, default='ddm_e1', help="weights and biases project name")
+    parser.add_argument('--tags', type=str, nargs="+", default="", help="weights and biases tags")
+    
 
     # parse configs
     args = parser.parse_args()
@@ -25,6 +34,33 @@ if __name__ == "__main__":
     # Convert to NoneDict, which return None for missing key.
     opt = Logger.dict_to_nonedict(opt)
     visualizer = Visualizer(opt)
+    
+    # wandb
+    wandb.login()
+    if wandb.run is not None:
+        wandb.finish()    
+    if not args.nowandb:        
+        project=args.project
+        run = wandb.init(
+            # Set the project where this run will be logged
+            project=args.project, 
+            tags=args.tags, 
+            notes='',
+            name=args.name)
+
+        config = {}
+        if args.name is not None: 
+            config['name'] = args.name        
+            
+            # initial_width=64,base_width=10, current_width=10,
+            # dropout=True,dropout_rate=0.2,
+            # epochs=600,learning_rate = 0.0001,
+            # patience=100, output_size=2,batch_size=8,
+
+        w = wandb.config = config        
+
+        
+    
 
     # logging
     torch.backends.cudnn.enabled = True
@@ -64,9 +100,12 @@ if __name__ == "__main__":
         for istep, train_data in enumerate(train_loader):
             iter_start_time = time.time()
             current_step += 1
-
+            
+            
             diffusion.feed_data(train_data)
-            diffusion.optimize_parameters()
+            if args.nowandb:
+                wandb=None
+            diffusion.optimize_parameters(wandb)
             # log
             if (istep+1) % opt['train']['print_freq'] == 0:
                 logs = diffusion.get_current_log()

@@ -10,7 +10,7 @@ class ACDCDataset(Dataset):
         self.imageNum = []
         self.dataroot = dataroot
 
-        datapath = os.path.join(dataroot, 'data_ED_ES')
+        datapath = os.path.join(dataroot, split)
         dataFiles = sorted(os.listdir(datapath))
         for isub, dataName in enumerate(dataFiles):
             self.imageNum.append(os.path.join(datapath, dataName))
@@ -29,13 +29,13 @@ class ACDCDataset(Dataset):
         label_dataA = data_['label_ED']
         label_dataB = data_['label_ES']
 
-        if self.split == 'test':
-            dataName = dataPath.split('/')[-1]
-            data_ = sio.loadmat(os.path.join(self.dataroot, 'data_ED2ES', dataName))
-            dataW = data_['image']
-            nsample = dataW.shape[-1]
-        else:
-            nsample = 0
+        # if self.split == 'test':
+        #     dataName = dataPath.split('/')[-1]
+        #     data_ = sio.loadmat(os.path.join(self.dataroot, 'data_ED2ES', dataName))
+        #     dataW = data_['image']
+        #     nsample = dataW.shape[-1]
+        # else:
+        nsample = 7 # the average number of samples used in inferrence only 
 
         dataA -= dataA.min()
         dataA /= dataA.std()
@@ -48,31 +48,43 @@ class ACDCDataset(Dataset):
         dataB /= dataB.max()
 
         nh, nw, nd = dataA.shape
-        sh = int((nh - self.fineSize[0]) / 2)
-        sw = int((nw - self.fineSize[1]) / 2)
-        dataA = dataA[sh:sh + self.fineSize[0], sw:sw + self.fineSize[1]]
-        dataB = dataB[sh:sh + self.fineSize[0], sw:sw + self.fineSize[1]]
-        label_dataA = label_dataA[sh:sh + self.fineSize[0], sw:sw + self.fineSize[1]]
-        label_dataB = label_dataB[sh:sh + self.fineSize[0], sw:sw + self.fineSize[1]]
+        desired_h, desired_w, desired_d = self.fineSize  # fineSize now includes depth
 
-        if nd >= 32:
-            sd = int((nd - self.fineSize[2]) / 2)
-            dataA = dataA[..., sd:sd + self.fineSize[2]]
-            dataB = dataB[..., sd:sd + self.fineSize[2]]
-            label_dataA = label_dataA[..., sd:sd + self.fineSize[2]]
-            label_dataB = label_dataB[..., sd:sd + self.fineSize[2]]
-        else:
-            sd = int((self.fineSize[2] - nd) / 2)
-            dataA_ = np.zeros(self.fineSize)
-            dataB_ = np.zeros(self.fineSize)
-            dataA_[:, :, sd:sd + nd] = dataA
-            dataB_[:, :, sd:sd + nd] = dataB
-            label_dataA_ = np.zeros(self.fineSize)
-            label_dataB_ = np.zeros(self.fineSize)
-            label_dataA_[:, :, sd:sd + nd] = label_dataA
-            label_dataB_[:, :, sd:sd + nd] = label_dataB
-            dataA, dataB = dataA_, dataB_
-            label_dataA, label_dataB = label_dataA_, label_dataB_
+
+        pad_h = max(0, desired_h - nh)
+        pad_w = max(0, desired_w - nw)
+        pad_d = max(0, desired_d - nd)
+
+
+        # Apply padding evenly on both sides, with any extra padding added to the bottom/right
+        pad_top = pad_h // 2
+        pad_bottom = pad_h - pad_top
+        pad_left = pad_w // 2
+        pad_right = pad_w - pad_left
+        pad_front = pad_d // 2
+        pad_back = pad_d - pad_front        
+        
+        # Pad the images and labels if necessary
+        if pad_h > 0 or pad_w > 0 or pad_d > 0:
+            dataA = np.pad(dataA, ((pad_top, pad_bottom), (pad_left, pad_right), (pad_front, pad_back)), 'constant', constant_values=0)
+            label_dataA = np.pad(label_dataA, ((pad_top, pad_bottom), (pad_left, pad_right), (pad_front, pad_back)), 'constant', constant_values=0)
+            dataB = np.pad(dataB, ((pad_top, pad_bottom), (pad_left, pad_right), (pad_front, pad_back)), 'constant', constant_values=0)
+            label_dataB = np.pad(label_dataB, ((pad_top, pad_bottom), (pad_left, pad_right), (pad_front, pad_back)), 'constant', constant_values=0)
+        
+        # Recalculate new heights and widths after padding
+        nh, nw, nd = dataA.shape
+        
+        # Calculate start points for cropping (automatically handles indivisibility by using integer division)
+        sh = max(0, (nh - desired_h) // 2)
+        sw = max(0, (nw - desired_w) // 2)
+        sd = max(0, (nd - desired_d) // 2)
+
+        # Crop to the desired size for height, width, and depth
+        dataA = dataA[sh:sh + desired_h, sw:sw + desired_w, sd:sd + desired_d]
+        label_dataA = label_dataA[sh:sh + desired_h, sw:sw + desired_w, sd:sd + desired_d]
+        dataB = dataB[sh:sh + desired_h, sw:sw + desired_w, sd:sd + desired_d]
+        label_dataB = label_dataB[sh:sh + desired_h, sw:sw + desired_w, sd:sd + desired_d]        
+        
 
         [data, label] = Util.transform_augment([dataA, dataB], split=self.split, min_max=(-1, 1))
 

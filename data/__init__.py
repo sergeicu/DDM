@@ -29,3 +29,14 @@ def create_dataset_cardiac(dataset_opt, phase):
     logger.info('Dataset [{:s} - {:s}] is created.'.format(dataset.__class__.__name__,
                                                            dataset_opt['name']))
     return dataset
+
+def create_dataset_hcp(dataset_opt, phase):
+    '''create dataset'''
+    from data.HCP_dataset import HCPDataset as D
+    dataset = D(dataroot=dataset_opt['dataroot'],
+                split=phase
+                )
+    logger = logging.getLogger('base')
+    logger.info('Dataset [{:s} - {:s}] is created.'.format(dataset.__class__.__name__,
+                                                           dataset_opt['name']))
+    return dataset

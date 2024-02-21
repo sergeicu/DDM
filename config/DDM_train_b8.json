@@ -9,14 +9,14 @@
         "log": "logs",
         "tb_logger": "tb_logger",
         "results": "results",
-        "checkpoint": "checkpoint",
+        "checkpoint": "checkpoint_b8_data_ED_ES",
         "resume_state": null
     },
     "datasets": {
         "train": {
             "name": "Cardiac_MR",
             "dataroot": "./data/acdc/data_ED_ES/",
-            "batch_size": 1,
+            "batch_size": 8,
             "num_workers": 8,
             "use_shuffle": true
         }
@@ -53,8 +53,8 @@
     },
     "train": {
         "n_epoch": 800,
-        "save_checkpoint_epoch": 100,
-        "val_freq": 50,
+        "save_checkpoint_epoch": 20,
+        "val_freq": 20,
         "print_freq": 1,
         "loss_lambda": 20,
         "optimizer": {
