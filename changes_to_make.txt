@@ -1,9 +1,9 @@
-[] remove voxelmorph (field_fn) 
-[] change number of output channels to 3 in DDPM 
-[] create double noise loss
-[] add VM loss for field smoothness to DDPM 
-[] add VM loss for cross correlation similarity to DDPM 
-[] change cross correlation into two losses where we compare only available lines... 
+[X] remove voxelmorph (field_fn) 
+[X] change number of output channels to 2 in DDPM  - flow and noise
+[-] [decided to simplify to one noise] create double noise loss 
+[X] add VM loss for field smoothness to DDPM  
+[?] add VM loss for cross correlation similarity to DDPM -> check if correct calculation of output (registered S image)
+[later] change cross correlation into two losses where we compare only available lines... -> reconsider later
 [] add backward step (calculate X_(t-1)) 
-[] consider what lambda we should use... 
+[later] consider what lambda we should use... 
 
