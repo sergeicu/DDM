@@ -6,11 +6,14 @@ import logging
 import core.logger as Logger
 import core.metrics as Metrics
 import os
+import sys
 import numpy as np
 import time
 from util.visualizer import Visualizer
 import torch.nn.functional as F
 from PIL import Image
+
+import nibabel as nib
 
 def save_image(image_numpy, image_path):
     image_pil = Image.fromarray(image_numpy.astype('uint8'))
@@ -101,22 +104,52 @@ if __name__ == "__main__":
         data_fixed = val_data['T'].squeeze().cpu().numpy().transpose(1, 2, 0)
         label_origin = val_data['SL'].squeeze().cpu().numpy()
         label_fixed = val_data['TL'].squeeze().cpu().numpy()
-
-        dpt = 12
-        savePath = os.path.join(result_path, '%s_mov.png' % (dataName))
-        save_image((data_origin[:,:,dpt]+1)/2.*255, savePath)
-        savePath = os.path.join(result_path, '%s_fix.png' % (dataName))
-        save_image((data_fixed[:,:,dpt]+1)/2.*255, savePath)
-        code_frames -= code_frames[-1][:,:,dpt].min()
-        code_frames /= code_frames[-1][:,:,dpt].max()
-        for iframe in range(code_frames.shape[0]):
-            savePath = os.path.join(result_path, '%s_frame%d.png' % (dataName, iframe+1))
-            save_image(defm_frames[iframe][:,:,dpt]*255, savePath)
-            savePath = os.path.join(result_path, '%s_code%d.png' % (dataName, iframe+1))
-            save_image(code_frames[iframe][:, :, dpt]*255, savePath)
+        
+        test1=True
+        save_examples=1
+        save_to_nifti=True
+        save_to_png=False
+        if save_to_nifti:
+            if savecounter == save_examples: 
+                if test1:
+                    sys.exit("Stopping after one example")
+                else:
+                    break 
+            
+            data_origino = nib.Nifti1Image(data_origin,np.eye(4))
+            data_fixedo = nib.Nifti1Image(data_fixed,np.eye(4))
+            label_origino = nib.Nifti1Image(label_origin,np.eye(4))
+            label_fixedo = nib.Nifti1Image(label_fixed,np.eye(4))
+            code_frameo = nib.Nifti1Image(np.moveaxis(code_frames, 0,-1),np.eye(4))
+            defm_frameo = nib.Nifti1Image(np.moveaxis(defm_frames,0,-1),np.eye(4))
+            
+            nib.save(data_origino,os.path.join(result_path, '%s_mov.nii.gz' % (dataName)))
+            nib.save(data_fixedo,os.path.join(result_path, '%s_fix.nii.gz' % (dataName)))
+            nib.save(label_origino,os.path.join(result_path, '%s_mov_label.nii.gz' % (dataName)))
+            nib.save(label_fixedo,os.path.join(result_path, '%s_fix_label.nii.gz' % (dataName)))
+            nib.save(code_frameo,os.path.join(result_path, '%s_scores.nii.gz' % (dataName)))
+            nib.save(defm_frameo,os.path.join(result_path, '%s_moved.nii.gz' % (dataName)))
+        
+            print(f"Saved to: {result_path}")
+            savecounter += 1
+            
+        if save_to_png:
+            dpt = 12 # this is datapoint - refers to slice number
+            savePath = os.path.join(result_path, '%s_mov.png' % (dataName))
+            save_image((data_origin[:,:,dpt]+1)/2.*255, savePath)
+            savePath = os.path.join(result_path, '%s_fix.png' % (dataName))
+            save_image((data_fixed[:,:,dpt]+1)/2.*255, savePath)
+            code_frames -= code_frames[-1][:,:,dpt].min()
+            code_frames /= code_frames[-1][:,:,dpt].max()
+            for iframe in range(code_frames.shape[0]):
+                savePath = os.path.join(result_path, '%s_frame%d.png' % (dataName, iframe+1))
+                save_image(defm_frames[iframe][:,:,dpt]*255, savePath)
+                savePath = os.path.join(result_path, '%s_code%d.png' % (dataName, iframe+1))
+                save_image(code_frames[iframe][:, :, dpt]*255, savePath)
+            print(f"Saved to: {savePath}")
+                    
         registTime.append(time2 - time1)
-        print(f"Saved to: {savePath}")
-        from IPython import embed; embed()
+        # from IPython import embed; embed()
 
     omdice, osdice = np.mean(originDice), np.std(originDice)
     mdice, sdice = np.mean(registDice), np.std(registDice)
