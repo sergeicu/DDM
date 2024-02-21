@@ -10,7 +10,7 @@
         "tb_logger": "tb_logger",
         "results": "results",
         "checkpoint": "checkpoint_b8_data_ED_ES",
-        "resume_state": "experiments/DDM_train_240220_083350/checkpoint_b8/I2600_E200"
+        "resume_state": "experiments/archive/DDM_train_240220_083350/checkpoint_b8/I2600_E200"
     },
     "datasets": {
         "test": {
