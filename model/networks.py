@@ -84,6 +84,8 @@ def define_G(opt):
     model_opt = opt['model']
     from .ddpm_modules import diffusion, unet
 
+
+    # sv407 - this is where we define Unet architecture for diffusion network - just the architecture
     diffusion_module = unet.UNet(
         in_channel=model_opt['unet']['in_channel'],
         out_channel=model_opt['unet']['out_channel'],
@@ -95,6 +97,7 @@ def define_G(opt):
         image_size=model_opt['diffusion']['image_size']
     )
 
+    # sv407 - this is where we define Unet architecture for voxelmorph network - just the architecture
     from .my_voxelmorph import registUnetBlock
     deformaton_module = registUnetBlock(model_opt['field']['in_channel'],
                            model_opt['field']['encoder_nc'],

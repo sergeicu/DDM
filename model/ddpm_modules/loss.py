@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 
+# sv407 - enforces smoothness and continuity in predicted functions (by penalizing changes in adjacent pixel values -> computes the gradient of the image)
 class gradientLoss(nn.Module):
     def __init__(self, penalty='l1'):
         super(gradientLoss, self).__init__()
@@ -18,7 +19,9 @@ class gradientLoss(nn.Module):
             dW = dW * dW
         loss = (torch.mean(dD) + torch.mean(dH) + torch.mean(dW)) / 3.0
         return loss
-
+    
+# sv407 - this is a custom CC function written initially for TransMorph paper https://github.com/junyuchen245/TransMorph_Transformer_for_Medical_Image_Registration
+# cross correlation is built by emphasizing similarity between local neighbourhoods of exctracted patches (through convolution operation)
 class crossCorrelation3D(nn.Module):
     def __init__(self, in_ch, kernel=(9, 9, 9), voxel_weights=None):
         super(crossCorrelation3D, self).__init__()

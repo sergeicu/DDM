@@ -7,7 +7,7 @@ import numpy as np
 from tqdm import tqdm
 from . import loss
 
-def _warmup_beta(linear_start, linear_end, n_timestep, warmup_frac):
+def _warmup_beta(linear_start, linear_end, n_timestep, warmup_frac): # sv407WARNING - completely unused function - is part of make_beta_schedule
     betas = linear_end * np.ones(n_timestep, dtype=np.float64)
     warmup_time = int(n_timestep * warmup_frac)
     betas[:warmup_time] = np.linspace(
@@ -15,7 +15,7 @@ def _warmup_beta(linear_start, linear_end, n_timestep, warmup_frac):
     return betas
 
 
-def make_beta_schedule(schedule, n_timestep, linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3):
+def make_beta_schedule(schedule, n_timestep, linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3): # sv407WARNING - completely unused function - is part of set_new_noise_schedule
     if schedule == 'quad':
         betas = np.linspace(linear_start ** 0.5, linear_end ** 0.5,
                             n_timestep, dtype=np.float64) ** 2
@@ -66,7 +66,7 @@ def extract(a, t, x_shape):
     return out.reshape(b, *((1,) * (len(x_shape) - 1)))
 
 
-def noise_like(shape, device, repeat=False):
+def noise_like(shape, device, repeat=False): # sv407WARNING - completely unused function
     def repeat_noise(): return torch.randn(
         (1, *shape[1:]), device=device).repeat(shape[0], *((1,) * (len(shape) - 1)))
 
@@ -89,7 +89,7 @@ class GaussianDiffusion(nn.Module):
         self.field_fn = deformation_module
         self.conditional = conditional
         self.loss_type = loss_type
-        if schedule_opt is not None:
+        if schedule_opt is not None: # sv407
             pass
 
     def set_loss(self, device):
@@ -103,7 +103,7 @@ class GaussianDiffusion(nn.Module):
         self.loss_reg = loss.gradientLoss("l2").to(device)
 
 
-    def set_new_noise_schedule(self, schedule_opt, device):
+    def set_new_noise_schedule(self, schedule_opt, device):  # sv407WARNING - completely unused function
         to_torch = partial(torch.tensor, dtype=torch.float32, device=device)
         betas = make_beta_schedule(
             schedule=schedule_opt['schedule'],
@@ -148,20 +148,20 @@ class GaussianDiffusion(nn.Module):
         self.register_buffer('posterior_mean_coef2', to_torch(
             (1. - alphas_cumprod_prev) * np.sqrt(alphas) / (1. - alphas_cumprod)))
 
-    def q_mean_variance(self, x_start, t):
+    def q_mean_variance(self, x_start, t): # sv407WARNING - completely unused function
         mean = extract(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
         variance = extract(1. - self.alphas_cumprod, t, x_start.shape)
         log_variance = extract(
             self.log_one_minus_alphas_cumprod, t, x_start.shape)
         return mean, variance, log_variance
 
-    def predict_start_from_noise(self, x_t, t, noise):
+    def predict_start_from_noise(self, x_t, t, noise): # sv407WARNING - completely unused function - is a subcomponent of p_mean_variance
         return (
             extract(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t -
             extract(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * noise
         )
 
-    def q_posterior(self, x_start, x_t, t):
+    def q_posterior(self, x_start, x_t, t): # sv407WARNING - completely unused function - is a subcomponent of p_mean_variance
         posterior_mean = (
             extract(self.posterior_mean_coef1, t, x_t.shape) * x_start +
             extract(self.posterior_mean_coef2, t, x_t.shape) * x_t
@@ -171,7 +171,7 @@ class GaussianDiffusion(nn.Module):
             self.posterior_log_variance_clipped, t, x_t.shape)
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
-    def p_mean_variance(self, x, t, clip_denoised: bool, condition_x=None):
+    def p_mean_variance(self, x, t, clip_denoised: bool, condition_x=None): # sv407WARNING - completely unused function
         with torch.no_grad():
             score = self.denoise_fn(torch.cat([condition_x, x], dim=1), t)
 
@@ -189,35 +189,40 @@ class GaussianDiffusion(nn.Module):
         device = self.betas.device
         S = x_in[:, :1]
         T = x_in[:, 1:]
-        x_0 = x_in[:, 1:]
+        x_0 = x_in[:, 1:] # sv407WARNING - this does not make any sense - we are feeding the same data (not noisy 'T') to the network twice 
+                            # during training we feed noised version of T, and here we just feed 'T' twice - it makes zero sense...
         b, c, d, h, w = S.shape
 
         with torch.no_grad():
-            t = torch.full((b,), 0, device=device, dtype=torch.long)
-            score = self.denoise_fn(torch.cat([S, T, x_0], dim=1), t)
+            t = torch.full((b,), 0, device=device, dtype=torch.long) # sv407WARNING - this does not make sense - we are basically telling the network t is equal to zero (i.e. n noise!) why?? the whole markovian step is lost here....
+            score = self.denoise_fn(torch.cat([S, T, x_0], dim=1), t) # sv407WARNING - why is our first step of registration - adding zero noise?? so we NEVER use ddpm in inferrence? why?? 
 
-            gamma = np.linspace(0, 1, nsample)
+            gamma = np.linspace(0, 1, nsample) # sv407WARNING - this is where we set the number of times we will iterate through markovian chain..with the same T (??? doesnt make any sense!)
+                                                # in short - nS relates to how many interpolation steps we want between deformations...
             b, c, d, h, w = x_0.shape
-            flow_stack = torch.zeros([1, 3, d, h, w], device=device)
-            code_stack = score
-            defm_stack = S
+            flow_stack = torch.zeros([1, 3, d, h, w], device=device) # sv407 - our initial deformation estimate is nothing (just zeros) -> this is why nS of 1 or 0 gets met flow field of zero...... needs to be at least a list of values... 
+            code_stack = score  # sv407WARNING - our first noise estimate is the estimate of noise from completely noise free images... WHY??? 
+            defm_stack = S  # sv407 - we start from S... and then add deformed images that will turn into T 
 
+
+            # sv407WARNING - basically - at inferrence we are not using the markovian nature of DDPM at all - we just do single pass through it to estimate some score... that we dont even use in the end ... 
+            # so what was the point of using DDPM in the first place in training? to estimate some estimate of the score - that we pass through in T steps? Ok... but why? 
             for i in (gamma):
                 print('-------- Deform with gamma=%.3f' % i)
-                code_i = score * (i)
-                S_phi_i, phi_i = self.field_fn(torch.cat([S, code_i], dim=1))
-                code_stack = torch.cat([code_stack, code_i], dim=0)
-                defm_stack = torch.cat([defm_stack, S_phi_i], dim=0)
-                flow_stack = torch.cat([flow_stack, phi_i], dim=0)
+                code_i = score * (i)  # sv407WARNING - it is basically trying to compute a linearly spaced smooth continuum between two images by multiplying by some fractional estimate between 0 (target) and 1 (source) images ... 
+                S_phi_i, phi_i = self.field_fn(torch.cat([S, code_i], dim=1)) # sv407 - here is where they pass it via voxelmorph... [0] is output and [1] is the estimated field
+                code_stack = torch.cat([code_stack, code_i], dim=0) # sv407 - we add new score estimate to prev estimate * multiplied by some ratio... 
+                defm_stack = torch.cat([defm_stack, S_phi_i], dim=0) # sv407 - we add new estimate of deformed image to prev estimate (in a list)
+                flow_stack = torch.cat([flow_stack, phi_i], dim=0) # sv407 - we add new estimate of deformation field to prev estimate (in a list) 
 
         if continous:
             return code_stack, defm_stack, flow_stack
         else:
-            return code_stack[-1], S_phi_i, flow_stack
+            return code_stack[-1], S_phi_i, flow_stack # if not continuous - we just return the LAST known image (which is basically registration in one step)
 
     @torch.no_grad()
-    def ddm_inference(self, x_in, nsample, continous=False):
-        return self.p_sample_loop(x_in, nsample, continous)
+    def ddm_inference(self, x_in, nsample, continous=False): # sv407 - this is how inferrence happens... i.e. how we compute multiple steps... 
+        return self.p_sample_loop(x_in, nsample, continous) # sv407 - p_sample is the iterative backwards process, while q_sample is the noise adding (forwards) process
 
     def q_sample(self, x_start, t, noise=None):
         noise = default(noise, lambda: torch.randn_like(x_start))
@@ -229,22 +234,23 @@ class GaussianDiffusion(nn.Module):
         )
 
     def p_losses(self, x_in, loss_lambda, noise=None):
+        # sv407 - this is where most of the logic of the network is happening (where most changes were made)
         x_start = x_in['T']
         [b, c, d, h, w] = x_start.shape
-        t = torch.randint(0, self.num_timesteps, (b,), device=x_start.device).long()
-        noise = default(noise, lambda: torch.randn_like(x_start))
-        x_t = self.q_sample(x_start=x_start, t=t, noise=noise)
+        t = torch.randint(0, self.num_timesteps, (b,), device=x_start.device).long()  # sv407 - this defines a range of t-s. I should check what these are
+        noise = default(noise, lambda: torch.randn_like(x_start)) # sv407 - this is just random noise
+        x_t = self.q_sample(x_start=x_start, t=t, noise=noise) # sv407 - here is where we add noise to our picture for t=T
 
         code = self.denoise_fn(torch.cat([x_in['S'], x_in['T'], x_t], dim=1), t)
 
-        l_pix = self.loss_func(noise, code)
+        l_pix = self.loss_func(noise, code) # sv407 - this is set to L2 loss (via config) - finds diff between noise and predicted noise...
 
         b, c, d, h, w = x_in['S'].shape
         l_pix = l_pix.sum() / int(b * c * d * h * w)
         #
-        output, flow = self.field_fn(torch.cat([x_in['S'], code], dim=1))
-        l_sim = self.loss_ncc(output, x_in['T']) * loss_lambda
-        l_smt = self.loss_reg(flow) * loss_lambda
+        output, flow = self.field_fn(torch.cat([x_in['S'], code], dim=1)) # sv407 - voxelmorph gets 'S' and the predicted noise from 'T' as inputs... I would change this value here 
+        l_sim = self.loss_ncc(output, x_in['T']) * loss_lambda # sv407 - we want the deformed 'S' and original 'T' to be as similar as possible after voxelmorph
+        l_smt = self.loss_reg(flow) * loss_lambda # sv407 - here we enforce smoothness during registration 
 
         loss = l_pix + l_sim + l_smt
         return [code, x_t], [l_pix, l_sim, l_smt, loss]

@@ -8,6 +8,7 @@ import model.networks as networks
 from .base_model import BaseModel
 logger = logging.getLogger('base')
 from . import metrics as Metrics
+import wandb
 
 class DDPM(BaseModel):
     def __init__(self, opt):
@@ -26,7 +27,7 @@ class DDPM(BaseModel):
         self.load_network()
         if self.opt['phase'] == 'train':
             self.netG.train()
-            # find the parameters to optimize
+            # find the parameters to optimize - # sv407 - this is set to zero in our config file - no finetuning - moreover named_parameters does not seem to be defined. this was for a network that could be finetuned - e.g. stable diffusion i suppose. 
             if opt['model']['finetune_norm']:
                 optim_params = []
                 for k, v in self.netG.named_parameters():
@@ -41,17 +42,36 @@ class DDPM(BaseModel):
                 optim_params = list(self.netG.parameters())
 
             self.optG = torch.optim.Adam(
-                optim_params, lr=opt['train']["optimizer"]["lr"], betas=(0.5, 0.999))
+                optim_params, lr=opt['train']["optimizer"]["lr"], betas=(0.5, 0.999)) # sv407 - these are the betas of the optimizer - hard coded 
             self.log_dict = OrderedDict()
         self.print_network(self.netG)
 
     def feed_data(self, data):
         self.data = self.set_device(data)
 
-    def optimize_parameters(self):
+    def optimize_parameters(self, wandb=None): # sv407 - this is the main function where forward prop + opt. gradients + losses are computed 
         self.optG.zero_grad()
         score, loss = self.netG(self.data, self.loss_lambda)
         self.score, self.pdata = score
+        
+        # from IPython import embed; embed()
+        
+        if wandb is not None: 
+            wandb.log({"score_mean":torch.mean(score[0]),
+                       "pdata_mean":torch.mean(score[1]),
+                       "score_std":torch.std(score[0]),
+                       "pdata_std":torch.std(score[1])})
+            
+            wandb.log({"l_pix":loss[0],
+                       "l_sim":loss[1],
+                       "l_smt":loss[2],
+                       "l_tot":loss[3]})  
+            
+            wandb.log({"nS0":self.data['nS'][0],
+                       "nS1":self.data['nS'][1],
+                       "nS2":self.data['nS'][2],
+                       "nS3":self.data['nS'][3]})
+            
 
         l_pix, l_sim, l_smt, l_tot = loss
         l_tot.backward()
@@ -65,9 +85,10 @@ class DDPM(BaseModel):
 
     def test(self, continous=False):
         self.netG.eval()
-        input = torch.cat([self.data['S'], self.data['T']], dim=1)
+        input = torch.cat([self.data['S'], self.data['T']], dim=1) # sv407WARNING - this is so at ods with training! why are we feeding S and T during INFERENCE but S + noisyT during training?? this does not make sense
         nsample = self.data['nS']
         if isinstance(self.netG, nn.DataParallel):
+            # sv407 - this is where nS (nsample) is being used - in ddm_inference!! I suppose nsample means how many steps one takes to go backwards? 
             self.code, self.deform, self.field = self.netG.module.ddm_inference(input, nsample, continous)
         else:
             self.code, self.deform, self.field = self.netG.ddm_inference(input, nsample, continous)
