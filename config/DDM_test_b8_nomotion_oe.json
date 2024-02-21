@@ -9,8 +9,8 @@
         "log": "logs",
         "tb_logger": "tb_logger",
         "results": "results",
-        "checkpoint": "checkpoint_b8_data_ES_nomotion_OE",
-        "resume_state": "experiments/archive/DDM_train_240220_130148/checkpoint_b8_data_ES_nomotion_OE/I5780_E340"
+        "checkpoint": "",
+        "resume_state": "experiments/DDM_train_240221_124951/checkpoint_b8_data_ES_nomotion_OE/I680_E40"
     },
     "datasets": {
         "test": {

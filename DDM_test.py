@@ -6,6 +6,7 @@ import logging
 import core.logger as Logger
 import core.metrics as Metrics
 import os
+import sys
 import numpy as np
 import time
 from util.visualizer import Visualizer
@@ -105,12 +106,16 @@ if __name__ == "__main__":
         label_origin = val_data['SL'].squeeze().cpu().numpy()
         label_fixed = val_data['TL'].squeeze().cpu().numpy()
         
+        test1=True
         save_examples=1
         save_to_nifti=True
         save_to_png=False
         if save_to_nifti:
             if savecounter == save_examples: 
-                break 
+                if test1:
+                    sys.exit("Stopping after one example")
+                else:
+                    break 
             
             data_origino = nib.Nifti1Image(data_origin,np.eye(4))
             data_fixedo = nib.Nifti1Image(data_fixed,np.eye(4))
@@ -145,7 +150,7 @@ if __name__ == "__main__":
             print(f"Saved to: {savePath}")
                     
         registTime.append(time2 - time1)
-        from IPython import embed; embed()
+        # from IPython import embed; embed()
 
     omdice, osdice = np.mean(originDice), np.std(originDice)
     mdice, sdice = np.mean(registDice), np.std(registDice)
