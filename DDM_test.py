@@ -12,8 +12,7 @@ import time
 from util.visualizer import Visualizer
 import torch.nn.functional as F
 from PIL import Image
-
-import nibabel as nib
+import nibabel as nib 
 
 def save_image(image_numpy, image_path):
     image_pil = Image.fromarray(image_numpy.astype('uint8'))
