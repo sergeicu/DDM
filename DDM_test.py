@@ -11,7 +11,7 @@ import time
 from util.visualizer import Visualizer
 import torch.nn.functional as F
 from PIL import Image
-import nibabel as nb 
+import nibabel as nib 
 
 def save_image(image_numpy, image_path):
     image_pil = Image.fromarray(image_numpy.astype('uint8'))
@@ -109,26 +109,25 @@ if __name__ == "__main__":
         save_to_nifti=True
         save_to_png=False
         if save_to_nifti:
-            savecounter += 1
             if savecounter == save_examples: 
                 break 
             
-            data_origino = nb.Nifti1Image(data_origin,np.eye(4))
-            data_fixedo = nb.Nifti1Image(data_fixed,np.eye(4))
-            label_origino = nb.Nifti1Image(label_origin,np.eye(4))
-            label_fixedo = nb.Nifti1Image(label_fixed,np.eye(4))
-            code_frameo = nb.Nifti1Image(np.moveaxis(code_frames, 0,-1),np.eye(4))
-            defm_frameo = nb.Nifti1Image(np.moveaxis(defm_frames,0,-1),np.eye(4))
+            data_origino = nib.Nifti1Image(data_origin,np.eye(4))
+            data_fixedo = nib.Nifti1Image(data_fixed,np.eye(4))
+            label_origino = nib.Nifti1Image(label_origin,np.eye(4))
+            label_fixedo = nib.Nifti1Image(label_fixed,np.eye(4))
+            code_frameo = nib.Nifti1Image(np.moveaxis(code_frames, 0,-1),np.eye(4))
+            defm_frameo = nib.Nifti1Image(np.moveaxis(defm_frames,0,-1),np.eye(4))
             
-            nb.save(data_origino,os.path.join(result_path, '%s_mov.nii.gz' % (dataName)))
-            nb.save(data_fixedo,os.path.join(result_path, '%s_fix.nii.gz' % (dataName)))
-            nb.save(label_origino,os.path.join(result_path, '%s_mov_label.nii.gz' % (dataName)))
-            nb.save(label_fixedo,os.path.join(result_path, '%s_fix_label.nii.gz' % (dataName)))
-            nb.save(code_frameo,os.path.join(result_path, '%s_scores.nii.gz' % (dataName)))
-            nb.save(defm_frameo,os.path.join(result_path, '%s_moved.nii.gz' % (dataName)))
-        
+            nib.save(data_origino,os.path.join(result_path, '%s_mov.nii.gz' % (dataName)))
+            nib.save(data_fixedo,os.path.join(result_path, '%s_fix.nii.gz' % (dataName)))
+            nib.save(label_origino,os.path.join(result_path, '%s_mov_label.nii.gz' % (dataName)))
+            nib.save(label_fixedo,os.path.join(result_path, '%s_fix_label.nii.gz' % (dataName)))
+            nib.save(code_frameo,os.path.join(result_path, '%s_scores.nii.gz' % (dataName)))
+            nib.save(defm_frameo,os.path.join(result_path, '%s_moved.nii.gz' % (dataName)))
         
             print(f"Saved to: {result_path}")
+            savecounter += 1
             
         if save_to_png:
             dpt = 12 # this is datapoint - refers to slice number
@@ -143,9 +142,9 @@ if __name__ == "__main__":
                 save_image(defm_frames[iframe][:,:,dpt]*255, savePath)
                 savePath = os.path.join(result_path, '%s_code%d.png' % (dataName, iframe+1))
                 save_image(code_frames[iframe][:, :, dpt]*255, savePath)
-                
+            print(f"Saved to: {savePath}")
+                    
         registTime.append(time2 - time1)
-        print(f"Saved to: {savePath}")
         from IPython import embed; embed()
 
     omdice, osdice = np.mean(originDice), np.std(originDice)
