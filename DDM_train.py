@@ -26,7 +26,6 @@ if __name__ == "__main__":
     parser.add_argument('--name', type=str, default=None, help="weights and biases run name")
     parser.add_argument('--project', type=str, default='ddm_e1', help="weights and biases project name")
     parser.add_argument('--tags', type=str, nargs="+", default="", help="weights and biases tags")
-    
 
     # parse configs
     args = parser.parse_args()
@@ -94,6 +93,11 @@ if __name__ == "__main__":
     diffusion.set_new_noise_schedule(
         opt['model']['beta_schedule'][opt['phase']], schedule_phase=opt['phase'])
 
+
+    # from IPython import embed; embed()
+    # next(itertrain_set))
+    
+    
     #### MOdel training ####
     while current_epoch < n_epoch:
         current_epoch += 1

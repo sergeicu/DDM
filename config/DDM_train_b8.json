@@ -9,7 +9,7 @@
         "log": "logs",
         "tb_logger": "tb_logger",
         "results": "results",
-        "checkpoint": "checkpoint_b8_data_ED_ES",
+        "checkpoint": "checkpoint_b8_data_ED_ES_v2",
         "resume_state": null
     },
     "datasets": {
@@ -52,7 +52,7 @@
         }
     },
     "train": {
-        "n_epoch": 800,
+        "n_epoch": 2000,
         "save_checkpoint_epoch": 20,
         "val_freq": 20,
         "print_freq": 1,
