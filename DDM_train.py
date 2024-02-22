@@ -76,6 +76,12 @@ if __name__ == "__main__":
         train_set = Data.create_dataset_cardiac(dataset_opt, phase)
         train_loader = Data.create_dataloader(train_set, dataset_opt, phase)
         training_iters = int(ceil(train_set.data_len / float(batchSize)))
+        
+        val_set = Data.create_dataset_cardiac(dataset_opt, "test")
+        val_loader = Data.create_dataloader(val_set, dataset_opt, "test")
+        val_iters = int(ceil(val_set.data_len / float(batchSize)))
+        
+        
     logger.info('Initial Training Dataset Finished')
 
     # model
@@ -111,13 +117,19 @@ if __name__ == "__main__":
                 logs = diffusion.get_current_log()
                 t = (time.time() - iter_start_time) / batchSize
                 visualizer.print_current_errors(current_epoch, istep+1, training_iters, logs, t, 'Train')
-                visualizer.plot_current_errors(current_epoch, (istep+1) / float(training_iters), logs)
+                # visualizer.plot_current_errors(current_epoch, (istep+1) / float(training_iters), logs)
 
-            # validation
-            if (istep+1) % opt['train']['val_freq'] == 0:
-                diffusion.test(continous=False)
-                visuals = diffusion.get_current_visuals()
-                visualizer.display_current_results(visuals, current_epoch, True)
+        # validation at the end of each epoch... 
+        if (current_epoch) % opt['train']['val_freq'] == 0:
+            print(f"Validating at {current_epoch}")
+            for istep_val, val_data in enumerate(val_loader):
+                diffusion.feed_valdata(val_data)
+                diffusion.validate(wandb)
+                if istep_val >8:  # lets validate on 8 random points ...
+                    break
+            #     diffusion.test(continous=False)
+            #     visuals = diffusion.get_current_visuals()
+            #     visualizer.display_current_results(visuals, current_epoch, True)
 
         if current_epoch % opt['train']['save_checkpoint_epoch'] == 0:
             logger.info('Saving models and training states.')

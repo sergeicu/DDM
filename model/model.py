@@ -48,41 +48,22 @@ class DDPM(BaseModel):
 
     def feed_data(self, data):
         self.data = self.set_device(data)
+        
+    def feed_valdata(self, data):
+        self.valdata = self.set_device(data)        
 
     def optimize_parameters(self, wandb=None): # sv407 - this is the main function where forward prop + opt. gradients + losses are computed 
         self.optG.zero_grad()
-        image_out, losses = self.netG(self.data, self.loss_lambda)
-        
-        # unroll predicted images
-        noise_pred, field_pred, S_i_prev, T_i_prev = image_out
-        self.noise_pred = noise_pred
-        self.field_pred = field_pred
-        self.S_i_prev = S_i_prev
-        self.T_i_prev = T_i_prev
-        
-        # from IPython import embed; embed()
+        image_out, loss = self.netG(self.data, self.loss_lambda)
+                
         
         if wandb is not None: 
-            # wandb.log({"noise_pred":noise_pred,
-            #            "field_pred":field_pred,
-            #            "S_i_prev":S_i_prev,
-            #            "T_i_prev":T_i_prev})
+            # from IPython import embed; embed()
+            wandb.log({"loss":loss})  
             
-            wandb.log({"l_pix":losses[0],
-                       "l_sim":losses[1],
-                       "l_smt":losses[2],
-                       "l_tot":losses[3]})  
-            
-
-        l_pix, l_sim, l_smt, l_tot = losses
-        l_tot.backward()
+        loss.backward()
         self.optG.step()
-
-        # set log
-        self.log_dict['l_pix'] = l_pix.item()
-        self.log_dict['l_sim'] = l_sim.item()
-        self.log_dict['l_smt'] = l_smt.item()
-        self.log_dict['l_tot'] = l_tot.item()
+        
 
 
     # CHANGE THIS - this is where we need to change how inferrence works...
@@ -96,6 +77,17 @@ class DDPM(BaseModel):
         else:
             self.code, self.deform, self.field = self.netG.ddm_inference(input, nsample, continous)
         self.netG.train()
+
+    def validate(self, wandb=None):
+        self.netG.eval()
+        with torch.no_grad():
+            image_out, loss = self.netG(self.valdata, self.loss_lambda)
+                
+        if wandb is not None: 
+            wandb.log({"val_loss":loss})  
+            
+        self.netG.train()
+
 
     def set_loss(self):
         if isinstance(self.netG, nn.DataParallel):

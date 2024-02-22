@@ -240,28 +240,14 @@ class GaussianDiffusion(nn.Module):
         t = torch.randint(0, self.num_timesteps, (b,), device=x_in['S'].device).long()  
         noise = default(noise, lambda: torch.randn_like(x_in['S'])) 
         S_i = self.q_sample(x_start=x_in['S'], t=t, noise=noise) 
-        T_i = self.q_sample(x_start=x_in['T'], t=t, noise=noise) 
-
-        noise_pred, flow = self.denoise_fn(torch.cat([x_in['S'], x_in['T'],S_i, T_i], dim=1), t)
+        # from IPython import embed; embed()
+        noise_pred = self.denoise_fn(torch.cat([x_in['S'],S_i], dim=1), t)
 
         l_pix = self.loss_func(noise, noise_pred) 
 
         l_pix = l_pix.sum() / int(b * c * d * h * w)
-
         
-        # CHANGE THIS - predict x_(t-1) here...
-        S_i_prev = []
-        T_i_prev = []
-        
-        # CHANGE THIS - is this correct field calculation? don't we want to take only the odd and only even lines?? 
-        #S_i_reg = S_i * flow
-        S_i_prev_reg = S_i_prev * flow
-        
-        l_sim = self.loss_ncc(S_i_prev_reg, T_i_prev) * loss_lambda 
-        l_smt = self.loss_reg(flow) * loss_lambda 
-
-        loss = l_pix + l_sim + l_smt
-        return [noise_pred, flow,S_i_prev, T_i_prev], [l_pix, l_sim, l_smt, loss]
+        return noise_pred, l_pix
 
     def forward(self, x, loss_lambda, *args, **kwargs):
         return self.p_losses(x, loss_lambda, *args, **kwargs)
