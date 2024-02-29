@@ -1,3 +1,4 @@
+import sys
 import math
 import torch
 from torch import nn, einsum
@@ -6,6 +7,7 @@ from functools import partial
 import numpy as np
 from tqdm import tqdm
 from . import loss
+
 
 def _warmup_beta(linear_start, linear_end, n_timestep, warmup_frac): # sv407WARNING - completely unused function - is part of make_beta_schedule
     betas = linear_end * np.ones(n_timestep, dtype=np.float64)
@@ -148,20 +150,20 @@ class GaussianDiffusion(nn.Module):
         self.register_buffer('posterior_mean_coef2', to_torch(
             (1. - alphas_cumprod_prev) * np.sqrt(alphas) / (1. - alphas_cumprod)))
 
-    def q_mean_variance(self, x_start, t): # sv407WARNING - completely unused function
+    def q_mean_variance(self, x_start, t): 
         mean = extract(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
         variance = extract(1. - self.alphas_cumprod, t, x_start.shape)
         log_variance = extract(
             self.log_one_minus_alphas_cumprod, t, x_start.shape)
         return mean, variance, log_variance
 
-    def predict_start_from_noise(self, x_t, t, noise): # sv407WARNING - completely unused function - is a subcomponent of p_mean_variance
+    def predict_start_from_noise(self, x_t, t, noise): 
         return (
             extract(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t -
             extract(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * noise
         )
 
-    def q_posterior(self, x_start, x_t, t): # sv407WARNING - completely unused function - is a subcomponent of p_mean_variance
+    def q_posterior(self, x_start, x_t, t): 
         posterior_mean = (
             extract(self.posterior_mean_coef1, t, x_t.shape) * x_start +
             extract(self.posterior_mean_coef2, t, x_t.shape) * x_t
@@ -171,10 +173,12 @@ class GaussianDiffusion(nn.Module):
             self.posterior_log_variance_clipped, t, x_t.shape)
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
-    def p_mean_variance(self, x, t, clip_denoised: bool, condition_x=None): # sv407WARNING - completely unused function
+    def p_mean_variance(self, x, t, clip_denoised: bool, condition_x=None): 
         with torch.no_grad():
             score = self.denoise_fn(torch.cat([condition_x, x], dim=1), t)
 
+        
+        # predict x_0 (not x_(t-1), but true x_0)
         x_recon = self.predict_start_from_noise(x, t=t, noise=score)
 
         if clip_denoised:
@@ -184,9 +188,45 @@ class GaussianDiffusion(nn.Module):
             x_start=x_recon, x_t=x, t=t)
         return model_mean, posterior_variance, posterior_log_variance
 
-    # @torch.no_grad()
-    
-    # CHANGE THIS later.... for inferrence only
+    def p_sample_loop_ddpm(self, x_in, nsample, continous=False):
+        
+        # define device 
+        device = self.betas.device
+        
+        # grab the image to denoise 
+        S = x_in[:, :1]
+        
+        # create the first image -> pure noise -> ALTERNATIVELY add only a little bit of noise... 
+        S_i = torch.randn_like(S,device=device,dtype=torch.long)        
+        
+        # define a vector of Ts from highest to lowest 
+        self.num_timesteps = 2000 
+        pbar = tqdm(list(range(self.num_timesteps))[::-1])
+        
+        
+        for idx in pbar:
+            
+            # generate a vector of ts based on current value of t 
+            t = torch.full((S.shape[0],), idx, device=device, dtype=torch.long)
+                
+            # make prediction using the model 
+            model_mean, posterior_variance, posterior_log_variance = self.p_mean_variance(x=S_i,t=t, clip_denoised=True, condition_x=S)
+            
+            # generate noise 
+            noise = torch.randn_like(S,device=device,dtype=torch.long)
+            
+            # nonzero mask - as long as t != 0 
+            if idx == 0:
+                nonzero_mask = torch.zeros_like(S,device=device,dtype=torch.long)
+            else:
+                nonzero_mask = torch.ones_like(S,device=device,dtype=torch.long)
+            
+            # predicted mean of noise + scaled down noise variance 
+            S_i = model_mean + nonzero_mask * torch.exp(0.5 * posterior_log_variance) * noise
+            
+        # return the final value of S_i
+        return S_i
+
     def p_sample_loop(self, x_in, nsample, continous=False):
         device = self.betas.device
         S = x_in[:, :1]
@@ -198,6 +238,7 @@ class GaussianDiffusion(nn.Module):
         with torch.no_grad():
             t = torch.full((b,), 0, device=device, dtype=torch.long) # sv407WARNING - this does not make sense - we are basically telling the network t is equal to zero (i.e. n noise!) why?? the whole markovian step is lost here....
             score = self.denoise_fn(torch.cat([S, T, x_0], dim=1), t) # sv407WARNING - why is our first step of registration - adding zero noise?? so we NEVER use ddpm in inferrence? why?? 
+                            # dim=1 - refers to how we MERGE the files together - we merge them across CHANNEL dimension. Because dim=0 -> batch, dim=1 -> channel, dim=2 -> slices, dim=3&4 -> inplane dimensions
 
             gamma = np.linspace(0, 1, nsample) # sv407WARNING - this is where we set the number of times we will iterate through markovian chain..with the same T (??? doesnt make any sense!)
                                                 # in short - nS relates to how many interpolation steps we want between deformations...
@@ -223,8 +264,13 @@ class GaussianDiffusion(nn.Module):
             return code_stack[-1], S_phi_i, flow_stack # if not continuous - we just return the LAST known image (which is basically registration in one step)
 
     @torch.no_grad()
-    def ddm_inference(self, x_in, nsample, continous=False): # sv407 - this is how inferrence happens... i.e. how we compute multiple steps... 
-        return self.p_sample_loop(x_in, nsample, continous) # sv407 - p_sample is the iterative backwards process, while q_sample is the noise adding (forwards) process
+    def ddm_inference(self, x_in, nsample, continous=False,inference_type='DDM'): # sv407 - this is how inferrence happens... i.e. how we compute multiple steps... 
+        if inference_type=='DDM':
+            return self.p_sample_loop(x_in, nsample, continous) # sv407 - p_sample is the iterative backwards process, while q_sample is the noise adding (forwards) process
+        elif inference_type == 'DDPM': 
+            return self.p_sample_loop_ddpm(x_in, nsample, continous) # sv407 - p_sample is the iterative backwards process, while q_sample is the noise adding (forwards) process
+        else: 
+            sys.exit('WRONG inference type')
 
     def q_sample(self, x_start, t, noise=None):
         noise = default(noise, lambda: torch.randn_like(x_start))

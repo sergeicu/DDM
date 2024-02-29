@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
         time1 = time.time()
         diffusion.feed_data(val_data)
-        diffusion.test(continous=True)
+        diffusion.test(continous=True, inference_type='DDPM')
         time2 = time.time()
         
         # sv407 - i will need to implement some functionality here that outputs actual nifti images that i can use for comparison... 
