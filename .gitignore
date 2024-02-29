@@ -1,0 +1,11 @@
+experiments/*
+wandb/*
+venv/*
+venv_izmir/*
+*__pycache__*
+data/acdc/*
+data/acdc_example/*
+data/acdc_png/*
+archive/
+DDM_train_hcp.py
+toy_sample
