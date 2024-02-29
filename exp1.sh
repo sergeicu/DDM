@@ -38,6 +38,7 @@ python3 DDM_train.py -p train -c config/DDM_train_b8_ddpm_only.json
 
 
 # [not implemented at all] test ddpm only 
+git checkout ddpm_only 
 python3 DDM_test.py -p test -c config/DDM_test_b8_ddpm_only.json # experiments/DDM_test_240221_152036/results
 
 # start on e2 

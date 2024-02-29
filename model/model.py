@@ -67,17 +67,17 @@ class DDPM(BaseModel):
 
 
     # CHANGE THIS - this is where we need to change how inferrence works...
-    def test(self, continous=False, inference_type='DDM'):
+    def test(self, continous=False, inference_type='DDM', savename=None):
         self.netG.eval()
         input = torch.cat([self.data['S'], self.data['T']], dim=1) # sv407WARNING - this is so at ods with training! why are we feeding S and T during INFERENCE but S + noisyT during training?? this does not make sense
         nsample = self.data['nS']
         if isinstance(self.netG, nn.DataParallel):
             # sv407 - this is where nS (nsample) is being used - in ddm_inference!! I suppose nsample means how many steps one takes to go backwards? 
             # self.code, self.deform, self.field = self.netG.module.ddm_inference(input, nsample, continous, inference_type=inference_type)
-            self.code = self.netG.module.ddm_inference(input, nsample, continous, inference_type=inference_type)
+            self.code = self.netG.module.ddm_inference(input, nsample, continous, inference_type=inference_type,savename=savename)
         else:
             # self.code, self.deform, self.field = self.netG.ddm_inference(input, nsample, continous, inference_type=inference_type)
-            self.code = self.netG.ddm_inference(input, nsample, continous, inference_type=inference_type)
+            self.code = self.netG.ddm_inference(input, nsample, continous, inference_type=inference_type,savename=savename)
         self.netG.train()
 
     def validate(self, wandb=None):
@@ -128,6 +128,13 @@ class DDPM(BaseModel):
         out_dict['deform'] =self.deform.detach().float().cpu()
         out_dict['field'] = self.field.detach().float().cpu()
         return out_dict
+    
+    def get_current_data_ddpm_only(self):
+        out_dict = OrderedDict()
+        out_dict['code'] = self.code.detach().float().cpu()
+        return out_dict    
+    
+    
 
     def print_network(self, net):
         s, n = self.get_network_description(net)

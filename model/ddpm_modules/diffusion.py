@@ -8,6 +8,8 @@ import numpy as np
 from tqdm import tqdm
 from . import loss
 
+import nibabel as nib
+
 
 def _warmup_beta(linear_start, linear_end, n_timestep, warmup_frac): # sv407WARNING - completely unused function - is part of make_beta_schedule
     betas = linear_end * np.ones(n_timestep, dtype=np.float64)
@@ -188,7 +190,7 @@ class GaussianDiffusion(nn.Module):
             x_start=x_recon, x_t=x, t=t)
         return model_mean, posterior_variance, posterior_log_variance
 
-    def p_sample_loop_ddpm(self, x_in, nsample, continous=False):
+    def p_sample_loop_ddpm(self, x_in, nsample, continous=False,savename=None):
         
         # define device 
         device = self.betas.device
@@ -197,12 +199,15 @@ class GaussianDiffusion(nn.Module):
         S = x_in[:, :1]
         
         # create the first image -> pure noise -> ALTERNATIVELY add only a little bit of noise... 
-        S_i = torch.randn_like(S,device=device,dtype=torch.long)        
+        S_i = torch.randn_like(S)
         
         # define a vector of Ts from highest to lowest 
-        self.num_timesteps = 2000 
+        self.num_timesteps = 2000
         pbar = tqdm(list(range(self.num_timesteps))[::-1])
         
+        # save every n steps 
+        save_every=500
+        # save_finer_after=500
         
         for idx in pbar:
             
@@ -213,16 +218,28 @@ class GaussianDiffusion(nn.Module):
             model_mean, posterior_variance, posterior_log_variance = self.p_mean_variance(x=S_i,t=t, clip_denoised=True, condition_x=S)
             
             # generate noise 
-            noise = torch.randn_like(S,device=device,dtype=torch.long)
+            noise = torch.randn_like(S)
             
             # nonzero mask - as long as t != 0 
             if idx == 0:
-                nonzero_mask = torch.zeros_like(S,device=device,dtype=torch.long)
+                nonzero_mask = torch.zeros_like(S)
             else:
-                nonzero_mask = torch.ones_like(S,device=device,dtype=torch.long)
+                nonzero_mask = torch.ones_like(S)
             
             # predicted mean of noise + scaled down noise variance 
             S_i = model_mean + nonzero_mask * torch.exp(0.5 * posterior_log_variance) * noise
+            
+            # if idx<save_finer_after:
+            #     save_every = 50
+            if savename is not None and idx%save_every==0:
+                myimage = S_i[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+                
+                newsavename=savename.replace("_denoised.nii.gz", f"_t{idx}_denoised.nii.gz")
+                imo = nib.Nifti1Image(myimage,affine=np.eye(4))
+                nib.save(imo, newsavename)
+                
+                print(f"Saving image at t={idx} to {newsavename}") 
+                
             
         # return the final value of S_i
         return S_i
@@ -264,11 +281,11 @@ class GaussianDiffusion(nn.Module):
             return code_stack[-1], S_phi_i, flow_stack # if not continuous - we just return the LAST known image (which is basically registration in one step)
 
     @torch.no_grad()
-    def ddm_inference(self, x_in, nsample, continous=False,inference_type='DDM'): # sv407 - this is how inferrence happens... i.e. how we compute multiple steps... 
+    def ddm_inference(self, x_in, nsample, continous=False,inference_type='DDM',savename=None): # sv407 - this is how inferrence happens... i.e. how we compute multiple steps... 
         if inference_type=='DDM':
             return self.p_sample_loop(x_in, nsample, continous) # sv407 - p_sample is the iterative backwards process, while q_sample is the noise adding (forwards) process
         elif inference_type == 'DDPM': 
-            return self.p_sample_loop_ddpm(x_in, nsample, continous) # sv407 - p_sample is the iterative backwards process, while q_sample is the noise adding (forwards) process
+            return self.p_sample_loop_ddpm(x_in, nsample, continous,savename=savename) # sv407 - p_sample is the iterative backwards process, while q_sample is the noise adding (forwards) process
         else: 
             sys.exit('WRONG inference type')
 
