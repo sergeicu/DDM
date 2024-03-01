@@ -1,6 +1,6 @@
 {
-    "name": "DDM_test",
-    "phase": "test",
+    "name": "DDM_train",
+    "phase": "train",
     "gpu_ids": [
         0
     ],
@@ -9,21 +9,23 @@
         "log": "logs",
         "tb_logger": "tb_logger",
         "results": "results",
-        "checkpoint": "",
-        "resume_state": "experiments/training/DDM_train_240222_012445/checkpoint_b8_data_ED_ES/I50000_E2000"
+        "checkpoint": "checkpoint_b8_data_ES_motion_noOE_v2",
+        "resume_state": null
     },
     "datasets": {
-        "test": {
+        "train": {
             "name": "Cardiac_MR",
-            "dataroot": "./data/acdc/data_ED_ES/",
-            "data_len": -1
+            "dataroot": "./data/acdc/data_ES_motion_noOE",
+            "batch_size": 6,
+            "num_workers": 8,
+            "use_shuffle": true
         }
     },
     "model": {
         "which_model_G": "ddpm",
         "finetune_norm": false,
         "unet": {
-            "in_channel": 2,
+            "in_channel": 3,
             "out_channel": 1,
             "inner_channel": 8,
             "channel_multiplier": [1, 2, 4, 4],
@@ -52,7 +54,7 @@
     "train": {
         "n_epoch": 2000,
         "save_checkpoint_epoch": 20,
-        "val_freq": 1,
+        "val_freq": 20,
         "print_freq": 1,
         "loss_lambda": 20,
         "optimizer": {

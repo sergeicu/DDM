@@ -73,6 +73,7 @@ if __name__ == "__main__":
 
         time1 = time.time()
         diffusion.feed_data(val_data)
+        #diffusion.test(continous=True, inference_type='explore_noise',savename=savename)
         diffusion.test(continous=True, inference_type='DDPM',savename=savename)
         time2 = time.time()
         

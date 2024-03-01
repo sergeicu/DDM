@@ -9,3 +9,6 @@ data/acdc_png/*
 archive/
 DDM_train_hcp.py
 toy_sample
+*.nii.gz 
+*.png 
+config/DDM_train_HCP.json
