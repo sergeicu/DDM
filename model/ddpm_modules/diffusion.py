@@ -313,12 +313,15 @@ class GaussianDiffusion(nn.Module):
         )
 
     def p_losses(self, x_in, loss_lambda, noise=None):
+        
         [b, c, d, h, w] = x_in['S'].shape
         t = torch.randint(0, self.num_timesteps, (b,), device=x_in['S'].device).long()  
         noise = default(noise, lambda: torch.randn_like(x_in['S'])) 
         S_i = self.q_sample(x_start=x_in['S'], t=t, noise=noise) 
-        # from IPython import embed; embed()
-        noise_pred = self.denoise_fn(torch.cat([x_in['S'],S_i], dim=1), t)
+        if self.conditional: 
+            noise_pred = self.denoise_fn(torch.cat([x_in['S'],S_i], dim=1), t)
+        else:
+            noise_pred = self.denoise_fn(S_i, t)
 
         l_pix = self.loss_func(noise, noise_pred) 
 

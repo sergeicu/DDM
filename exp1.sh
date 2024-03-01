@@ -64,7 +64,10 @@ python3 DDM_test.py -p test -c config/DDM_test_b8_ddpm_only.json
     1A. 1 image with condition  + all images with condition
 
         python3 DDM_train.py -p train -c config/DDM_train_ddpm_wcond_1s.json
-    1B. 1 image with condition 
+        python3 DDM_train.py -p train -c config/DDM_train_ddpm_wcond.json
+    1B. 1 image without condition + all images without condition
+        python3 DDM_train.py -p train -c config/DDM_train_ddpm_nocond.json
+
     # 2. all images with and without condition 
     # 3. ES-ED images without condition... 
 
