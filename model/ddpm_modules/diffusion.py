@@ -201,13 +201,16 @@ class GaussianDiffusion(nn.Module):
         # create the first image -> pure noise -> ALTERNATIVELY add only a little bit of noise... 
         S_i = torch.randn_like(S)
         
+        # set the condition to zeros or one - as a test. 
+        # S = torch.zeros_like(S)
+        
         # define a vector of Ts from highest to lowest 
-        self.num_timesteps = 2000
+        self.num_timesteps = 2000 # i think the gradients must explore - or something like this - when t is very high... (and outside of range of trained t)
         pbar = tqdm(list(range(self.num_timesteps))[::-1])
         
         # save every n steps 
         save_every=500
-        # save_finer_after=500
+        save_finer_after=500
         
         for idx in pbar:
             
@@ -229,8 +232,8 @@ class GaussianDiffusion(nn.Module):
             # predicted mean of noise + scaled down noise variance 
             S_i = model_mean + nonzero_mask * torch.exp(0.5 * posterior_log_variance) * noise
             
-            # if idx<save_finer_after:
-            #     save_every = 50
+            if idx==save_finer_after:
+                save_every = 50
             if savename is not None and idx%save_every==0:
                 myimage = S_i[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
                 
