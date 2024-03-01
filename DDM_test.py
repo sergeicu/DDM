@@ -68,7 +68,7 @@ if __name__ == "__main__":
         dataName = val_data['P'][0].split('/')[-1][:-4]
         print('Test Data: %s' % dataName)
 
-        # name for intermediate results 
+        # name for intermediate results saving during test - if set to None - it will not save anything. 
         savename = os.path.join(result_path, '%s_denoised.nii.gz' % (dataName)) # set this to None to stop
 
         time1 = time.time()
