@@ -103,6 +103,7 @@ if __name__ == "__main__":
     #### MOdel training ####
     while current_epoch < n_epoch:
         current_epoch += 1
+        # print(f"E:{current_epoch}")
         for istep, train_data in enumerate(train_loader):
             iter_start_time = time.time()
             current_step += 1
@@ -130,6 +131,7 @@ if __name__ == "__main__":
             #     diffusion.test(continous=False)
             #     visuals = diffusion.get_current_visuals()
             #     visualizer.display_current_results(visuals, current_epoch, True)
+
 
         if current_epoch % opt['train']['save_checkpoint_epoch'] == 0:
             logger.info('Saving models and training states.')

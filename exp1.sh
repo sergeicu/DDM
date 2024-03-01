@@ -39,7 +39,7 @@ python3 DDM_train.py -p train -c config/DDM_train_b8_ddpm_only.json
 
 # [not implemented at all] test ddpm only 
 git checkout ddpm_only 
-python3 DDM_test.py -p test -c config/DDM_test_b8_ddpm_only.json # experiments/DDM_test_240221_152036/results
+python3 DDM_test.py -p test -c config/DDM_test_b8_ddpm_only.json 
 
 
 # TODO NEXT 
@@ -61,8 +61,9 @@ python3 DDM_test.py -p test -c config/DDM_test_b8_ddpm_only.json # experiments/D
 
 
 # train with UPDATED noise schedule for 
-    1A. 1 image with condition 
-        python3 DDM_train.py -p train -c config/DDM_train_b8_ddpm_only.json
+    1A. 1 image with condition  + all images with condition
+
+        python3 DDM_train.py -p train -c config/DDM_train_ddpm_wcond_1s.json
     1B. 1 image with condition 
     # 2. all images with and without condition 
     # 3. ES-ED images without condition... 
