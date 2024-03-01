@@ -28,6 +28,10 @@ class ACDCDataset(Dataset):
         dataB = data_['image_ES']
         label_dataA = data_['label_ED']
         label_dataB = data_['label_ES']
+        
+        # Clip data 
+        dataA = np.clip(dataA, 0, 500)  
+        dataB = np.clip(dataB, 0, 500)  
 
         # if self.split == 'test':
         #     dataName = dataPath.split('/')[-1]
