@@ -10,7 +10,7 @@ from . import loss
 
 import nibabel as nib
 
-from explore_noisy import *
+from model.ddpm_modules.explore_noisy import *
 
 
 

@@ -23,7 +23,8 @@ def create_dataset_cardiac(dataset_opt, phase):
     '''create dataset'''
     from data.ACDC_dataset import ACDCDataset as D
     dataset = D(dataroot=dataset_opt['dataroot'],
-                split=phase
+                split=phase, 
+                limitto=dataset_opt['limitto'],
                 )
     logger = logging.getLogger('base')
     logger.info('Dataset [{:s} - {:s}] is created.'.format(dataset.__class__.__name__,

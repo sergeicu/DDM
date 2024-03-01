@@ -5,18 +5,21 @@ import numpy as np
 import scipy.io as sio
 
 class ACDCDataset(Dataset):
-    def __init__(self, dataroot, split='train'):
+    def __init__(self, dataroot, split='train',limitto=None):
         self.split = split
         self.imageNum = []
         self.dataroot = dataroot
 
         datapath = os.path.join(dataroot, split)
         dataFiles = sorted(os.listdir(datapath))
+        if limitto is not None: 
+            dataFiles = dataFiles[:limitto]
+            assert len(dataFiles) == limitto    
         for isub, dataName in enumerate(dataFiles):
             self.imageNum.append(os.path.join(datapath, dataName))
-
         self.data_len = len(self.imageNum)
         self.fineSize = [128, 128, 32]
+
 
     def __len__(self):
         return self.data_len

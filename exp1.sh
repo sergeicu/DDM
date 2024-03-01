@@ -41,6 +41,33 @@ python3 DDM_train.py -p train -c config/DDM_train_b8_ddpm_only.json
 git checkout ddpm_only 
 python3 DDM_test.py -p test -c config/DDM_test_b8_ddpm_only.json # experiments/DDM_test_240221_152036/results
 
+
+# TODO NEXT 
+# train with UPDATED noise schedule for 
+    # 1. 1 image with and without condition 
+    # 2. all images with and without condition 
+    # 3. ES-ED images without condition... 
+
+
+# meanwhile todo tasks: 
+    # 1. Integrate DPS loss function into DDPM only testing 
+    # 2. Integrate DPS into DiffuseMorph with correct noise schedules etc 
+    # 3. Build my own inferrence schedule with DiffuseMorph architecture 
+    # 4. Build my own architecture (no additional VM network for computign the field map)
+
+# Test with: 
+    # 1. Odd-even slices 
+    # 2. Simply interpolated slices... 
+
+
+# train with UPDATED noise schedule for 
+    1A. 1 image with condition 
+        python3 DDM_train.py -p train -c config/DDM_train_b8_ddpm_only.json
+    1B. 1 image with condition 
+    # 2. all images with and without condition 
+    # 3. ES-ED images without condition... 
+
+
 # start on e2 
 e2 
 srun -A crl -p crl-gpu -t 14:00:00 --qos=crl --gres=gpu:NVIDIA_A40:1 -n 8 --mem 128GB --pty /bin/bash 
