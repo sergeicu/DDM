@@ -20,13 +20,19 @@ source venv_e2/bin/activate
 
 # train dpsduo 1 - same noise - all subjects - single batch 
 git checkout dps_duo 
-python3 DDM_train.py -p train -c config/DPSduo_train_v1.json --nowandb
+python3 DDM_train.py -p train -c config/DPSduo_train_v1.json  # comic_brook_40  # experiments/DPSduo_train_240302_031722
 
 
 # train dpsduo 1 - different noise... - all subjects - single batch 
-git checkout dps_duo 
-python3 DDM_train.py -p train -c config/DPSduo_train_v1.json --nowandb
+git checkout dps_duo_2losses
+python3 DDM_train.py -p train -c config/DPSduo_train_2losses.json --nowandb
+
+# train dps_morph -> 
 
 
+##############
+# Test 
+##############
 
-
+# test dpsduo 1 - same noise - all subjects - single batch 
+python3 DDM_test.py -p test -c config/DPSduo_test_v1.json  # weights are here: experiments/DPSduo_train_240302_031722
