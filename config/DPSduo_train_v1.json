@@ -54,7 +54,7 @@
     },
     "train": {
         "n_epoch": 10000,
-        "save_checkpoint_epoch": 500,
+        "save_checkpoint_epoch": 50,
         "val_freq": 100,
         "print_freq": 100,
         "loss_lambda": 20,
