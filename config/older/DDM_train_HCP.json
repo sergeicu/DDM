@@ -1,5 +1,5 @@
 {
-    "name": "DDM_train",
+    "name": "DiffuseMorph_3D",
     "phase": "train",
     "gpu_ids": [
         0
@@ -9,14 +9,14 @@
         "log": "logs",
         "tb_logger": "tb_logger",
         "results": "results",
-        "checkpoint": "checkpoint_b8_data_ED_ES",
+        "checkpoint": "checkpoint",
         "resume_state": null
     },
     "datasets": {
         "train": {
-            "name": "Cardiac_MR",
-            "dataroot": "./data/acdc/data_ED_ES/",
-            "batch_size": 4,
+            "name": "3D",
+            "dataroot": "./toy_sample/3d/train/data_HCP/",
+            "batch_size": 1,
             "num_workers": 8,
             "use_shuffle": true
         }
@@ -25,7 +25,7 @@
         "which_model_G": "ddpm",
         "finetune_norm": false,
         "unet": {
-            "in_channel": 2,
+            "in_channel": 3,
             "out_channel": 1,
             "inner_channel": 8,
             "channel_multiplier": [1, 2, 4, 4],
@@ -52,9 +52,9 @@
         }
     },
     "train": {
-        "n_epoch": 2000,
-        "save_checkpoint_epoch": 20,
-        "val_freq": 1,
+        "n_epoch": 800,
+        "save_checkpoint_epoch": 100,
+        "val_freq": 10,
         "print_freq": 1,
         "loss_lambda": 20,
         "optimizer": {
