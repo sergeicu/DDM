@@ -68,13 +68,18 @@ python3 DDM_test.py -p test -c config/DDM_test_b8_ddpm_only.json
 # train with UPDATED noise schedule for 
     1A. images with condition
 
-        python3 DDM_train.py -p train -c config/DDM_train_ddpm_wcond_1s.json # astral-cloud 
-        python3 DDM_train.py -p train -c config/DDM_train_ddpm_wcond.json # likely-salad 
+        python3 DDM_train.py -p train -c config/DDM_train_ddpm_wcond_1s.json # astral-cloud  -> experiments/DDM_train_240301_172419/checkpoint_b8_data_ED_ES/
+        python3 DDM_train.py -p train -c config/DDM_train_ddpm_wcond.json # likely-salad ! -> experiments/DDM_train_240301_172720/checkpoint_b8_data_ED_ES/
     1B. images without condition: 
-        python3 DDM_train.py -p train -c config/DDM_train_ddpm_nocond.json # gallant sponge 
-        python3 DDM_train.py -p train -c config/DDM_train_ddpm_nocond_1s.json
+        python3 DDM_train.py -p train -c config/DDM_train_ddpm_nocond.json # gallant sponge ! -> experiments/DDM_train_240301_180405/checkpoint_b8_data_ED_ES/
+        python3 DDM_train.py -p train -c config/DDM_train_ddpm_nocond_1s.json # stellar-dragon -> experiments/DDM_train_240301_190357/checkpoint_b8_data_ED_ES/
     2A. ES-ED images without condition... 
-        
+
+
+# test them 
+git checkout dps_only
+python3 DDM_test.py -p test -c config/DDM_test_ddpm_nocond.json
+
 
 
 # start on e2 
