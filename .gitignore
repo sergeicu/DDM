@@ -1,6 +1,7 @@
 experiments/*
 wandb/*
 venv/*
+venv_e2/*
 venv_izmir/*
 *__pycache__*
 data/acdc/*

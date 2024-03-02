@@ -218,7 +218,10 @@ class GaussianDiffusion(nn.Module):
 
     def p_mean_variance(self, x, t, clip_denoised: bool, condition_x=None): 
         with torch.no_grad():
-            score = self.denoise_fn(torch.cat([condition_x, x], dim=1), t)
+            if self.conditional:
+                score = self.denoise_fn(torch.cat([condition_x, x], dim=1), t)
+            else:
+                score = self.denoise_fn(x, t)
 
         
         # predict x_0 (not x_(t-1), but true x_0)
@@ -247,7 +250,7 @@ class GaussianDiffusion(nn.Module):
         S_i = torch.randn_like(S)
         
         # define a vector of Ts from highest to lowest 
-        self.num_timesteps = 2000 # i think the gradients must explore - or something like this - when t is very high... (and outside of range of trained t)
+        # self.num_timesteps = 2000 # i think the gradients must explore - or something like this - when t is very high... (and outside of range of trained t)
         pbar = tqdm(list(range(self.num_timesteps))[::-1])
         
         # save every n steps 
@@ -279,6 +282,8 @@ class GaussianDiffusion(nn.Module):
                 nib.save(imo, newsavename)             
                 
                 print(f"Original files saved to: {os.path.dirname(newsavename)}")               
+        else:
+            y_n=S
 
         
 
@@ -291,7 +296,8 @@ class GaussianDiffusion(nn.Module):
             t = torch.full((S.shape[0],), idx, device=device, dtype=torch.long)
                 
             # make prediction using the model 
-            model_mean, posterior_variance, posterior_log_variance,x_recon = self.p_mean_variance(x=S_i,t=t, clip_denoised=clip_denoised, condition_x=S)
+            condition = y_n
+            model_mean, posterior_variance, posterior_log_variance,x_recon = self.p_mean_variance(x=S_i,t=t, clip_denoised=clip_denoised, condition_x=condition)
             
             # generate noise 
             noise = torch.randn_like(S)
@@ -302,24 +308,7 @@ class GaussianDiffusion(nn.Module):
             else:
                 out = model_mean
                 
-                
 
-            
-            
-            
-            # save images 
-            if idx==save_finer_after:
-                save_every = 50
-            if savename is not None and idx%save_every==0:
-                myimage = out[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
-                
-                newsavename=savename.replace("_denoised.nii.gz", f"_t{idx}_denoised.nii.gz")
-                imo = nib.Nifti1Image(myimage,affine=np.eye(4))
-                nib.save(imo, newsavename)
-                
-                print(f"Saving image at t={idx} to {newsavename}") 
-                
-                
             ############
             # DPS part 
             ############
@@ -332,7 +321,6 @@ class GaussianDiffusion(nn.Module):
             # ... 
             # the only thing i dont understand is why we do the noiser part?? 
             
-                        
             if dps: 
 
                 
@@ -350,6 +338,21 @@ class GaussianDiffusion(nn.Module):
             else:
                 S_i = out.detach()     
                 
+                
+                
+            # save images 
+            if idx==save_finer_after:
+                save_every = 100
+            if savename is not None and idx%save_every==0:
+                myimage = out[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+                
+                newsavename=savename.replace("_denoised.nii.gz", f"_t{idx}_denoised.nii.gz")
+                imo = nib.Nifti1Image(myimage,affine=np.eye(4))
+                nib.save(imo, newsavename)
+                
+                print(f"Saving image at t={idx} to {newsavename}") 
+                
+                                
                 
         # return the final value of S_i
         return S_i                 
