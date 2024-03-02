@@ -36,3 +36,15 @@ python3 DDM_train.py -p train -c config/DPSduo_train_2losses.json --nowandb
 
 # test dpsduo 1 - same noise - all subjects - single batch 
 python3 DDM_test.py -p test -c config/DPSduo_test_v1.json  # weights are here: experiments/DPSduo_train_240302_031722
+    
+    # dps without repetitions 
+    experiments/DPSduo_test_240302_155956/..
+
+    # dps repeated 5 times for every step 
+    experiments/DPSduo_test_240302_160533/results
+
+    # no dps
+    
+
+
+# what was the error? it was something to do with... noise schedule?? 

@@ -219,23 +219,33 @@ class GaussianDiffusion(nn.Module):
     def p_mean_variance(self, x, t, clip_denoised: bool, condition_x=None): 
         with torch.no_grad():
             if self.conditional:
+                sys.exit('not implemented for dps_duo')
                 score = self.denoise_fn(torch.cat([condition_x, x], dim=1), t)
             else:
-                score = self.denoise_fn(x, t)
+                # we are passing x because it already contains a torch.cat result of both vectors 
+                score = self.denoise_fn(x, t) # returns an output with single dim ... is this correct? 
 
         
         # predict x_0 (not x_(t-1), but true x_0)
-        x_recon = self.predict_start_from_noise(x, t=t, noise=score)
+        x1 = x[:,0:1, :,:,:]
+        x_recon1 = self.predict_start_from_noise(x1, t=t, noise=score)
+        
+        x2 = x[:,1:2, :,:,:]
+        x_recon2 = self.predict_start_from_noise(x2, t=t, noise=score)
 
         if clip_denoised:
-            x_recon.clamp_(-1., 1.)
+            x_recon1.clamp_(-1., 1.)
+            x_recon2.clamp_(-1., 1.)
 
-        model_mean, posterior_variance, posterior_log_variance = self.q_posterior(
-            x_start=x_recon, x_t=x, t=t)
-        return model_mean, posterior_variance, posterior_log_variance,x_recon
+        model_mean1, posterior_variance1, posterior_log_variance1 = self.q_posterior(
+            x_start=x_recon1, x_t=x1, t=t)
+        
+        model_mean2, posterior_variance2, posterior_log_variance2 = self.q_posterior(
+            x_start=x_recon2, x_t=x2, t=t)     
+           
+        return (model_mean1,model_mean2), (posterior_variance1,posterior_variance2), (posterior_log_variance1,posterior_log_variance2),(x_recon1,x_recon2)
 
     def p_sample_loop_ddpm(self, x_in, nsample, continous=False,savename=None):
-        
         
         clip_denoised=False # since we do not clip our values on prediction - we should not clip values during inference!
         
@@ -244,10 +254,11 @@ class GaussianDiffusion(nn.Module):
         device = self.betas.device
         
         # grab the image to denoise 
-        S = x_in[:, :1]
+        S = x_in[:, :1]    
         
         # create the first image -> pure noise -> ALTERNATIVELY add only a little bit of noise... 
         S_i = torch.randn_like(S)
+        T_i = torch.randn_like(S)
         
         # define a vector of Ts from highest to lowest 
         pbar = tqdm(list(range(self.num_timesteps))[::-1])
@@ -261,12 +272,21 @@ class GaussianDiffusion(nn.Module):
             
             # Forward measurement model (Ax + n)
             sigma = 0.05 # 5% noise (we are adding it to other image because it is necessary?)
-            y = get_odd_even(S,select='odd') # -> i.e. select odd-even lines 
+            y1 = get_odd_even(S,select='odd') # -> i.e. select odd lines 
+            y2 = get_odd_even(S,select='even') # -> i.e. select even lines             
+            
+            
             #y_n = y + torch.randn_like(S, device=device) * sigma  # add noise based on given variance to this image (just as a start...)
             
+            # ADD NOISE TO EVEN LINES (THAT ARE EMPTY)
             # lets just add noise where the slices are zero
-            y_n = y.clone()
-            y_n[:,:,1::2,:,:] = y[:,:,1::2,:,:] + torch.randn_like(S[:,:,1::2,:,:], device=device) * sigma  # add noise based on given variance to this image (just as a start...)
+            y_n1 = y1.clone()
+            y_n1[:,:,1::2,:,:] = y1[:,:,1::2,:,:] + torch.randn_like(S[:,:,1::2,:,:], device=device) * sigma  # add noise based on given variance to this image (just as a start...)
+
+            # ADD NOISE TO ODD LINES  (THAT ARE EMPTY)
+            y_n2 = y2.clone()
+            y_n2[:,:,0::2,:,:] = y2[:,:,0::2,:,:] + torch.randn_like(S[:,:,0::2,:,:], device=device) * sigma  # add noise based on given variance to this image (just as a start...)
+
             
             if savename:
                 myimage = S[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
@@ -274,163 +294,205 @@ class GaussianDiffusion(nn.Module):
                 imo = nib.Nifti1Image(myimage,affine=np.eye(4))
                 nib.save(imo, newsavename)     
                 
-                myimage = y[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
-                newsavename=savename.replace("_denoised.nii.gz", f"_y.nii.gz")
+                myimage = y1[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+                newsavename=savename.replace("_denoised.nii.gz", f"_y1.nii.gz")
                 imo = nib.Nifti1Image(myimage,affine=np.eye(4))
                 nib.save(imo, newsavename)                            
 
-                myimage = y_n[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
-                newsavename=savename.replace("_denoised.nii.gz", f"_y_n.nii.gz")
+                myimage = y_n1[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+                newsavename=savename.replace("_denoised.nii.gz", f"_y_n1.nii.gz")
                 imo = nib.Nifti1Image(myimage,affine=np.eye(4))
                 nib.save(imo, newsavename)             
+
+                myimage = y2[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+                newsavename=savename.replace("_denoised.nii.gz", f"_y2.nii.gz")
+                imo = nib.Nifti1Image(myimage,affine=np.eye(4))
+                nib.save(imo, newsavename)                            
+
+                myimage = y_n2[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+                newsavename=savename.replace("_denoised.nii.gz", f"_y_n2.nii.gz")
+                imo = nib.Nifti1Image(myimage,affine=np.eye(4))
+                nib.save(imo, newsavename)             
+
                 
                 print(f"Original files saved to: {os.path.dirname(newsavename)}")               
         else:
-            y_n=S
+            y_n1=S
+            y_n2=S
 
         
+        repeat_every_step = 1 # set to 1 get default
 
         for idx in pbar:
-            
-            # required for DPS 
-            S_i = S_i.requires_grad_()            
-            
-            # generate a vector of ts based on current value of t 
-            t = torch.full((S.shape[0],), idx, device=device, dtype=torch.long)
+            for i in range(0,repeat_every_step):     # repeat N times        
+                # required for DPS 
+                S_i = S_i.requires_grad_()    
+                T_i = T_i.requires_grad_()            
                 
-            # make prediction using the model 
-            condition = y_n
-            model_mean, posterior_variance, posterior_log_variance,x_recon = self.p_mean_variance(x=S_i,t=t, clip_denoised=clip_denoised, condition_x=condition)
-            
-            # generate noise 
-            noise = torch.randn_like(S)
-            
-            # predicted mean of noise + scaled down noise variance 
-            if idx !=0:
-                out = model_mean + torch.exp(0.5 * posterior_log_variance) * noise
-            else:
-                out = model_mean
+                # generate a vector of ts based on current value of t 
+                t = torch.full((S.shape[0],), idx, device=device, dtype=torch.long)
+                    
+                # make prediction using the model 
+                condition = (y_n1,y_n2)
+                input = torch.cat([S_i, T_i], dim=1)
+                model_mean, posterior_variance, posterior_log_variance,x_recon = self.p_mean_variance(x=input,t=t, clip_denoised=clip_denoised, condition_x=condition)
                 
+                # unfold returned values 
+                model_mean1, model_mean2 = model_mean
+                posterior_log_variance1, posterior_log_variance2 = posterior_log_variance
+                x_recon1, x_recon2 = x_recon
+                
+                # generate noise 
+                noise = torch.randn_like(S)
+                
+                # predicted mean of noise + scaled down noise variance 
+                if idx !=0:
+                    out1 = model_mean1 + torch.exp(0.5 * posterior_log_variance1) * noise
+                    out2 = model_mean2 + torch.exp(0.5 * posterior_log_variance2) * noise
+                else:
+                    out1 = model_mean1
+                    out2 = model_mean2
+                    
 
-            ############
-            # DPS part 
-            ############
-            
-            # q_sample on y_n -> noisy_measurement 
-            
-            # diff operator -> calculate diff between odd-even image... -> but i dont get it because we already removed lines no? 
-            # AH! i finally understand - where we do forward operator - y=operator.forwad(ref_img) -> noiser(y) -> this simulators the data!!! 
-            # we can do this on images in real time or we can do it BEFORE we feed the images - in the dataloader... lol ... 
-            # ... 
-            # the only thing i dont understand is why we do the noiser part?? 
-            
-            if dps: 
+                ############
+                # DPS part 
+                ############
+                
+                # q_sample on y_n -> noisy_measurement 
+                
+                # diff operator -> calculate diff between odd-even image... -> but i dont get it because we already removed lines no? 
+                # AH! i finally understand - where we do forward operator - y=operator.forwad(ref_img) -> noiser(y) -> this simulators the data!!! 
+                # we can do this on images in real time or we can do it BEFORE we feed the images - in the dataloader... lol ... 
+                # ... 
+                # the only thing i dont understand is why we do the noiser part?? 
+                
+                if dps: 
 
-                
-                # add noise to y_n properly according to timestep
-                noisy_measurement = self.q_sample(y_n, t=t)  
-                
-                S_i, distance = measurement_cond_fn(x_t=out,
-                                        measurement=y_n,
-                                        noisy_measurement=noisy_measurement,
-                                        x_prev=S_i,
-                                        x_0_hat=x_recon)     
-                S_i = S_i.detach()  
-                pbar.set_postfix({'distance': distance.item()}, refresh=False)
-                
-            else:
-                S_i = out.detach()     
-                
-                
-                
-            # save images 
-            if idx==save_finer_after:
-                save_every = 100
-            if savename is not None and idx%save_every==0:
-                myimage = out[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
-                
-                newsavename=savename.replace("_denoised.nii.gz", f"_t{idx}_denoised.nii.gz")
-                imo = nib.Nifti1Image(myimage,affine=np.eye(4))
-                nib.save(imo, newsavename)
-                
-                print(f"Saving image at t={idx} to {newsavename}") 
-                
-                                
-            ########################################
-            # REPEAT AGAIN!!! - 10 times for every steps in last 50 steps 
-            ########################################
-            
-            if idx<50:
-                
-                for ii in range(0,10):
-                    # required for DPS 
-                    S_i = S_i.requires_grad_()            
                     
-                    # generate a vector of ts based on current value of t 
-                    t = torch.full((S.shape[0],), idx, device=device, dtype=torch.long)
-                        
-                    # make prediction using the model 
-                    condition = y_n
-                    model_mean, posterior_variance, posterior_log_variance,x_recon = self.p_mean_variance(x=S_i,t=t, clip_denoised=clip_denoised, condition_x=condition)
+                    # add noise to y_n properly according to timestep
+                    noisy_measurement1 = self.q_sample(y_n1, t=t)  
                     
-                    # generate noise 
-                    noise = torch.randn_like(S)
+                    S_i, distance1 = measurement_cond_fn(x_t=out1,
+                                            measurement=y_n1,
+                                            noisy_measurement=noisy_measurement1,
+                                            x_prev=S_i,
+                                            x_0_hat=x_recon1)     
+                    S_i = S_i.detach()  
                     
-                    # predicted mean of noise + scaled down noise variance 
-                    if idx !=0:
-                        out = model_mean + torch.exp(0.5 * posterior_log_variance) * noise
-                    else:
-                        out = model_mean
-                        
+                    # add noise to y_n properly according to timestep
+                    noisy_measurement2 = self.q_sample(y_n2, t=t)  
+                    
+                    T_i, distance2 = measurement_cond_fn(x_t=out2,
+                                            measurement=y_n2,
+                                            noisy_measurement=noisy_measurement2,
+                                            x_prev=T_i,
+                                            x_0_hat=x_recon2)     
+                    T_i = T_i.detach()                  
+                    pbar.set_postfix({'distance1': distance1.item()}, refresh=False)
+                    pbar.set_postfix({'distance2': distance2.item()}, refresh=False)
+                    
+                else:
+                    S_i = out1.detach()   
+                    T_i = out2.detach()     
+                    
+                    
+                    
+                # save images 
+                if idx==save_finer_after:
+                    save_every = 100
+                if savename is not None and idx%save_every==0:
+                    myimage1 = out1[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+                    myimage2 = out2[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+                    
+                    newsavename=savename.replace("_denoised.nii.gz", f"_t{idx}_denoised1.nii.gz")
+                    imo = nib.Nifti1Image(myimage1,affine=np.eye(4))
+                    nib.save(imo, newsavename)
 
-                    ############
-                    # DPS part 
-                    ############
-                    
-                    # q_sample on y_n -> noisy_measurement 
-                    
-                    # diff operator -> calculate diff between odd-even image... -> but i dont get it because we already removed lines no? 
-                    # AH! i finally understand - where we do forward operator - y=operator.forwad(ref_img) -> noiser(y) -> this simulators the data!!! 
-                    # we can do this on images in real time or we can do it BEFORE we feed the images - in the dataloader... lol ... 
-                    # ... 
-                    # the only thing i dont understand is why we do the noiser part?? 
-                    
-                    if dps: 
+                    newsavename=savename.replace("_denoised.nii.gz", f"_t{idx}_denoised2.nii.gz")
+                    imo = nib.Nifti1Image(myimage2,affine=np.eye(4))
+                    nib.save(imo, newsavename)
 
-                        
-                        # add noise to y_n properly according to timestep
-                        noisy_measurement = self.q_sample(y_n, t=t)  
-                        
-                        S_i, distance = measurement_cond_fn(x_t=out,
-                                                measurement=y_n,
-                                                noisy_measurement=noisy_measurement,
-                                                x_prev=S_i,
-                                                x_0_hat=x_recon)     
-                        S_i = S_i.detach()  
-                        pbar.set_postfix({'distance': distance.item()}, refresh=False)
-                        
-                    else:
-                        S_i = out.detach()     
-                        
-                        
-                        
-                    # save images 
-                    if idx==save_finer_after:
-                        save_every = 100
-                    if savename is not None and idx%save_every==0:
-                        myimage = out[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
-                        
-                        newsavename=savename.replace("_denoised.nii.gz", f"_t{idx}_denoised.nii.gz")
-                        imo = nib.Nifti1Image(myimage,affine=np.eye(4))
-                        nib.save(imo, newsavename)
-                        
-                        print(f"Saving image at t={idx} to {newsavename}") 
-                        
+                    
+                    print(f"Saving image at t={idx} to {newsavename}") 
+                    
                                     
+                # uncommented for now 
+                ########################################
+                # REPEAT AGAIN!!! - 10 times for every steps in last 50 steps 
+                ########################################
+                
+                # if idx<50:
+                    
+                #     for ii in range(0,10):
+                #         # required for DPS 
+                #         S_i = S_i.requires_grad_()            
+                        
+                #         # generate a vector of ts based on current value of t 
+                #         t = torch.full((S.shape[0],), idx, device=device, dtype=torch.long)
+                            
+                #         # make prediction using the model 
+                #         condition = y_n
+                #         model_mean, posterior_variance, posterior_log_variance,x_recon = self.p_mean_variance(x=S_i,t=t, clip_denoised=clip_denoised, condition_x=condition)
+                        
+                #         # generate noise 
+                #         noise = torch.randn_like(S)
+                        
+                #         # predicted mean of noise + scaled down noise variance 
+                #         if idx !=0:
+                #             out = model_mean + torch.exp(0.5 * posterior_log_variance) * noise
+                #         else:
+                #             out = model_mean
+                            
+
+                #         ############
+                #         # DPS part 
+                #         ############
+                        
+                #         # q_sample on y_n -> noisy_measurement 
+                        
+                #         # diff operator -> calculate diff between odd-even image... -> but i dont get it because we already removed lines no? 
+                #         # AH! i finally understand - where we do forward operator - y=operator.forwad(ref_img) -> noiser(y) -> this simulators the data!!! 
+                #         # we can do this on images in real time or we can do it BEFORE we feed the images - in the dataloader... lol ... 
+                #         # ... 
+                #         # the only thing i dont understand is why we do the noiser part?? 
+                        
+                #         if dps: 
+
+                            
+                #             # add noise to y_n properly according to timestep
+                #             noisy_measurement = self.q_sample(y_n, t=t)  
+                            
+                #             S_i, distance = measurement_cond_fn(x_t=out,
+                #                                     measurement=y_n,
+                #                                     noisy_measurement=noisy_measurement,
+                #                                     x_prev=S_i,
+                #                                     x_0_hat=x_recon)     
+                #             S_i = S_i.detach()  
+                #             pbar.set_postfix({'distance': distance.item()}, refresh=False)
+                            
+                #         else:
+                #             S_i = out.detach()     
+                            
+                            
+                            
+                #         # save images 
+                #         if idx==save_finer_after:
+                #             save_every = 100
+                #         if savename is not None and idx%save_every==0:
+                #             myimage = out[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+                            
+                #             newsavename=savename.replace("_denoised.nii.gz", f"_t{idx}_denoised.nii.gz")
+                #             imo = nib.Nifti1Image(myimage,affine=np.eye(4))
+                #             nib.save(imo, newsavename)
+                            
+                #             print(f"Saving image at t={idx} to {newsavename}") 
+                            
+                                        
                 
                 
         # return the final value of S_i
-        return S_i                 
+        return S_i,T_i                 
+
 
 
     def p_sample_loop(self, x_in, nsample, continous=False):
