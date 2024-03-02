@@ -497,10 +497,12 @@ class GaussianDiffusion(nn.Module):
         t = torch.randint(0, self.num_timesteps, (b,), device=x_in['S'].device).long()  
         noise = default(noise, lambda: torch.randn_like(x_in['S'])) 
         S_i = self.q_sample(x_start=x_in['S'], t=t, noise=noise) 
+        T_i = self.q_sample(x_start=x_in['T'], t=t, noise=noise) 
         if self.conditional: 
+            sys.exit('Not implemented for two inputs')
             noise_pred = self.denoise_fn(torch.cat([x_in['S'],S_i], dim=1), t)
         else:
-            noise_pred = self.denoise_fn(S_i, t)
+            noise_pred = self.denoise_fn(torch.cat([S_i, T_i], dim=1), t)
 
         l_pix = self.loss_func(noise, noise_pred) 
 
