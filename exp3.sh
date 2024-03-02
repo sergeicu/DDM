@@ -44,7 +44,10 @@ python3 DDM_test.py -p test -c config/DPSduo_test_v1.json  # weights are here: e
     experiments/DPSduo_test_240302_160533/results
 
     # no dps
-    
+    experiments/DPSduo_test_240302_164015/results
+
+    # see other results in: 
+    log_s20240302_v2.sh
 
 
 # what was the error? it was something to do with... noise schedule?? 

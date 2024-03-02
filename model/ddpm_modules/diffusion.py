@@ -254,18 +254,56 @@ class GaussianDiffusion(nn.Module):
         device = self.betas.device
         
         # grab the image to denoise 
-        S = x_in[:, :1]    
+        S = x_in[:, 0:1]    
+        # T = x_in[:, 1:2]  
+        T = x_in[:, 0:1]      
         
+        
+        # create a little bit of noise and go backwards 100 times -> track every saved output 
         # create the first image -> pure noise -> ALTERNATIVELY add only a little bit of noise... 
-        S_i = torch.randn_like(S)
-        T_i = torch.randn_like(S)
+        #S_i = torch.randn_like(S)
+        #T_i = torch.randn_like(S)
+        # step=100
+        # self.num_timesteps = step 
+        step=self.num_timesteps-1
+        t = torch.full((S.shape[0],), step, device=device, dtype=torch.long)
+        noise = torch.randn_like(S)
+        S_i = self.q_sample(S, t=t, noise=noise) 
+        T_i = self.q_sample(T, t=t, noise=noise) 
         
+                
+        
+        
+        save_noisy=True
+        if save_noisy:
+            myimage = S_i[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+            newsavename=savename.replace("_denoised.nii.gz", f"_S_i_t{step}.nii.gz")
+            imo = nib.Nifti1Image(myimage,affine=np.eye(4))
+            nib.save(imo, newsavename)     
+
+            myimage = T_i[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+            newsavename=savename.replace("_denoised.nii.gz", f"_T_i_t{step}.nii.gz")
+            imo = nib.Nifti1Image(myimage,affine=np.eye(4))
+            nib.save(imo, newsavename)    
+            
+            myimage = S[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+            newsavename=savename.replace("_denoised.nii.gz", f"_S.nii.gz")
+            imo = nib.Nifti1Image(myimage,affine=np.eye(4))
+            nib.save(imo, newsavename)     
+
+            myimage = T[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+            newsavename=savename.replace("_denoised.nii.gz", f"_T.nii.gz")
+            imo = nib.Nifti1Image(myimage,affine=np.eye(4))
+            nib.save(imo, newsavename)     
+            
+            print(f"Saved to: {os.path.dirname(newsavename)}")
+             
         # define a vector of Ts from highest to lowest 
         pbar = tqdm(list(range(self.num_timesteps))[::-1])
         
         # save every n steps 
-        save_every=500
-        save_finer_after=499
+        save_every=100
+        save_finer_after=100
         
         dps=True
         if dps: 
@@ -331,7 +369,7 @@ class GaussianDiffusion(nn.Module):
                 
                 # generate a vector of ts based on current value of t 
                 t = torch.full((S.shape[0],), idx, device=device, dtype=torch.long)
-                    
+                
                 # make prediction using the model 
                 condition = (y_n1,y_n2)
                 input = torch.cat([S_i, T_i], dim=1)
@@ -369,8 +407,11 @@ class GaussianDiffusion(nn.Module):
                 if dps: 
 
                     
+                    # generate identical noise to add to both images 
+                    noise_ = torch.randn_like(S)
+                    
                     # add noise to y_n properly according to timestep
-                    noisy_measurement1 = self.q_sample(y_n1, t=t)  
+                    noisy_measurement1 = self.q_sample(y_n1, t=t,noise=noise_)  
                     
                     S_i, distance1 = measurement_cond_fn(x_t=out1,
                                             measurement=y_n1,
@@ -380,7 +421,7 @@ class GaussianDiffusion(nn.Module):
                     S_i = S_i.detach()  
                     
                     # add noise to y_n properly according to timestep
-                    noisy_measurement2 = self.q_sample(y_n2, t=t)  
+                    noisy_measurement2 = self.q_sample(y_n2, t=t,noise=noise_)   
                     
                     T_i, distance2 = measurement_cond_fn(x_t=out2,
                                             measurement=y_n2,
@@ -396,10 +437,16 @@ class GaussianDiffusion(nn.Module):
                     T_i = out2.detach()     
                     
                     
+                # if idx == 99: 
+                #     from IPython import embed; embed()
+                # else:
+                #     sys.exit('exited')
+                    
+                    
                     
                 # save images 
                 if idx==save_finer_after:
-                    save_every = 100
+                    save_every = 10
                 if savename is not None and idx%save_every==0:
                     myimage1 = out1[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
                     myimage2 = out2[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
