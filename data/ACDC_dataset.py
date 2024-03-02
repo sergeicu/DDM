@@ -26,7 +26,7 @@ class ACDCDataset(Dataset):
 
     def __getitem__(self, index):
         dataPath = self.imageNum[index]
-        dataPath = "/home/ch215616/w/code/diffusion/experiments/s20240209_oecorr/DDM/data/acdc/data_ED_ES/train/patient010_iso.mat"
+        #dataPath = "/home/ch215616/w/code/diffusion/experiments/s20240209_oecorr/DDM/data/acdc/data_ED_ES/train/patient010_iso.mat"
         data_ = sio.loadmat(dataPath)
         dataA = data_['image_ED']
         dataB = data_['image_ES']

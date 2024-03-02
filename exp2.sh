@@ -101,7 +101,11 @@ python3 DDM_test.py -p test -c config/DDM_test_ddpm_nocond.json
         experiments/DDM_test_240302_015909/results/
         # total insanity... i have to verify it again!!! 
 
-        
+        # testing AGAIN with another subject - test subject... 
+        experiments/DDM_test_240302_020805/
+        # total insanity... 
+
+
 
 
 
