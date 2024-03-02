@@ -1,4 +1,5 @@
 import sys
+import os 
 import math
 import torch
 from torch import nn, einsum
@@ -80,6 +81,42 @@ def noise_like(shape, device, repeat=False): # sv407WARNING - completely unused 
 
     def noise(): return torch.randn(shape, device=device)
     return repeat_noise() if repeat else noise()
+
+
+def get_odd_even(data,select='odd', **kwargs):
+    newdata = torch.zeros_like(data)
+    assert newdata.ndim == 5
+    if select=='odd':
+        newdata[:,:,0::2,:,:] = data[:,:,0::2,:,:]
+    else:
+        newdata[:,:,1::2,:,:] = data[:,:,1::2,:,:]
+        
+    return newdata
+
+def frobenius_norm(input_tensor):
+    # substitutes torch.linalg.norm which is not available in earlier torch version 
+    return torch.sqrt(torch.sum(input_tensor ** 2))
+
+def grad_and_value(x_prev, x_0_hat, measurement, **kwargs):
+    difference = measurement - get_odd_even(x_0_hat, select='odd', **kwargs) # get diff 
+    norm = frobenius_norm(difference) # get L2 norm between measured image (odd-even) and predicted image (also within odd-even framework)
+    norm_grad = torch.autograd.grad(outputs=norm, inputs=x_prev)[0] # calculate gradient w.r.t. to L2 norm to be able to go into that direction
+    
+    return norm_grad, norm
+             
+                
+def measurement_cond_fn(x_t, measurement, x_prev,x_0_hat, **kwargs):
+    scale = 0.5 
+    
+    norm_grad, norm = grad_and_value(x_prev=x_prev, x_0_hat=x_0_hat, measurement=measurement, **kwargs)
+    x_t -= norm_grad * scale # we move predicted x_t (after odd_even) 
+                             # towards the direction that will minimize the loss between it and the measured image
+    
+   
+    return x_t, norm
+    
+                
+            
 
 
 class GaussianDiffusion(nn.Module):
@@ -192,10 +229,7 @@ class GaussianDiffusion(nn.Module):
 
         model_mean, posterior_variance, posterior_log_variance = self.q_posterior(
             x_start=x_recon, x_t=x, t=t)
-        return model_mean, posterior_variance, posterior_log_variance
-    
-
-        
+        return model_mean, posterior_variance, posterior_log_variance,x_recon
 
     def p_sample_loop_ddpm(self, x_in, nsample, continous=False,savename=None):
         
@@ -220,27 +254,64 @@ class GaussianDiffusion(nn.Module):
         save_every=500
         save_finer_after=500
         
+        dps=True
+        if dps: 
+            
+            # Forward measurement model (Ax + n)
+            sigma = 0.05 # 5% noise (we are adding it to other image because it is necessary?)
+            y = get_odd_even(S,select='odd') # -> i.e. select odd-even lines 
+            y_n = y + torch.randn_like(S, device=device) * sigma  # add noise based on given variance to this image (just as a start...)
+            
+            if savename:
+                myimage = S[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+                newsavename=savename.replace("_denoised.nii.gz", f"_input.nii.gz")
+                imo = nib.Nifti1Image(myimage,affine=np.eye(4))
+                nib.save(imo, newsavename)     
+                
+                myimage = y[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+                newsavename=savename.replace("_denoised.nii.gz", f"_y.nii.gz")
+                imo = nib.Nifti1Image(myimage,affine=np.eye(4))
+                nib.save(imo, newsavename)                            
+
+                myimage = y_n[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+                newsavename=savename.replace("_denoised.nii.gz", f"_y_n.nii.gz")
+                imo = nib.Nifti1Image(myimage,affine=np.eye(4))
+                nib.save(imo, newsavename)             
+                
+                print(f"Original files saved to: {os.path.dirname(newsavename)}")               
+
+        
+
         for idx in pbar:
+            
+            # required for DPS 
+            S_i = S_i.requires_grad_()            
             
             # generate a vector of ts based on current value of t 
             t = torch.full((S.shape[0],), idx, device=device, dtype=torch.long)
                 
             # make prediction using the model 
-            model_mean, posterior_variance, posterior_log_variance = self.p_mean_variance(x=S_i,t=t, clip_denoised=clip_denoised, condition_x=S)
+            model_mean, posterior_variance, posterior_log_variance,x_recon = self.p_mean_variance(x=S_i,t=t, clip_denoised=clip_denoised, condition_x=S)
             
             # generate noise 
             noise = torch.randn_like(S)
             
             # predicted mean of noise + scaled down noise variance 
             if idx !=0:
-                S_i = model_mean + torch.exp(0.5 * posterior_log_variance) * noise
+                out = model_mean + torch.exp(0.5 * posterior_log_variance) * noise
             else:
-                S_i = model_mean
+                out = model_mean
+                
+                
+
             
+            
+            
+            # save images 
             if idx==save_finer_after:
                 save_every = 50
             if savename is not None and idx%save_every==0:
-                myimage = S_i[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+                myimage = out[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
                 
                 newsavename=savename.replace("_denoised.nii.gz", f"_t{idx}_denoised.nii.gz")
                 imo = nib.Nifti1Image(myimage,affine=np.eye(4))
@@ -248,9 +319,41 @@ class GaussianDiffusion(nn.Module):
                 
                 print(f"Saving image at t={idx} to {newsavename}") 
                 
+                
+            ############
+            # DPS part 
+            ############
             
+            # q_sample on y_n -> noisy_measurement 
+            
+            # diff operator -> calculate diff between odd-even image... -> but i dont get it because we already removed lines no? 
+            # AH! i finally understand - where we do forward operator - y=operator.forwad(ref_img) -> noiser(y) -> this simulators the data!!! 
+            # we can do this on images in real time or we can do it BEFORE we feed the images - in the dataloader... lol ... 
+            # ... 
+            # the only thing i dont understand is why we do the noiser part?? 
+            
+                        
+            if dps: 
+
+                
+                # add noise to y_n properly according to timestep
+                noisy_measurement = self.q_sample(y_n, t=t)  
+                
+                S_i, distance = measurement_cond_fn(x_t=out,
+                                        measurement=y_n,
+                                        noisy_measurement=noisy_measurement,
+                                        x_prev=S_i,
+                                        x_0_hat=x_recon)     
+                S_i = S_i.detach()  
+                pbar.set_postfix({'distance': distance.item()}, refresh=False)
+                
+            else:
+                S_i = out.detach()     
+                
+                
         # return the final value of S_i
-        return S_i
+        return S_i                 
+
 
     def p_sample_loop(self, x_in, nsample, continous=False):
         device = self.betas.device
@@ -288,7 +391,7 @@ class GaussianDiffusion(nn.Module):
         else:
             return code_stack[-1], S_phi_i, flow_stack # if not continuous - we just return the LAST known image (which is basically registration in one step)
 
-    @torch.no_grad()
+    # @torch.no_grad()
     def ddm_inference(self, x_in, nsample, continous=False,inference_type='DDM',savename=None): # sv407 - this is how inferrence happens... i.e. how we compute multiple steps... 
         if inference_type=='DDM':
             return self.p_sample_loop(x_in, nsample, continous) # sv407 - p_sample is the iterative backwards process, while q_sample is the noise adding (forwards) process

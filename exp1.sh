@@ -42,6 +42,11 @@ git checkout ddpm_only
 python3 DDM_test.py -p test -c config/DDM_test_b8_ddpm_only.json 
 
 
+# test dps only 
+git checkout dps_only
+python3 DDM_test.py -p test -c config/DDM_test_b8_ddpm_only.json 
+
+
 # TODO NEXT 
 # train with UPDATED noise schedule for 
     # 1. 1 image with and without condition 
