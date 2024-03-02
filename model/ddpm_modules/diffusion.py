@@ -289,6 +289,7 @@ class GaussianDiffusion(nn.Module):
             y_n=S
 
         
+
         for idx in pbar:
             
             # required for DPS 
@@ -355,6 +356,78 @@ class GaussianDiffusion(nn.Module):
                 print(f"Saving image at t={idx} to {newsavename}") 
                 
                                 
+            ########################################
+            # REPEAT AGAIN!!! - 10 times for every steps in last 50 steps 
+            ########################################
+            
+            if idx<50:
+                
+                for ii in range(0,10):
+                    # required for DPS 
+                    S_i = S_i.requires_grad_()            
+                    
+                    # generate a vector of ts based on current value of t 
+                    t = torch.full((S.shape[0],), idx, device=device, dtype=torch.long)
+                        
+                    # make prediction using the model 
+                    condition = y_n
+                    model_mean, posterior_variance, posterior_log_variance,x_recon = self.p_mean_variance(x=S_i,t=t, clip_denoised=clip_denoised, condition_x=condition)
+                    
+                    # generate noise 
+                    noise = torch.randn_like(S)
+                    
+                    # predicted mean of noise + scaled down noise variance 
+                    if idx !=0:
+                        out = model_mean + torch.exp(0.5 * posterior_log_variance) * noise
+                    else:
+                        out = model_mean
+                        
+
+                    ############
+                    # DPS part 
+                    ############
+                    
+                    # q_sample on y_n -> noisy_measurement 
+                    
+                    # diff operator -> calculate diff between odd-even image... -> but i dont get it because we already removed lines no? 
+                    # AH! i finally understand - where we do forward operator - y=operator.forwad(ref_img) -> noiser(y) -> this simulators the data!!! 
+                    # we can do this on images in real time or we can do it BEFORE we feed the images - in the dataloader... lol ... 
+                    # ... 
+                    # the only thing i dont understand is why we do the noiser part?? 
+                    
+                    if dps: 
+
+                        
+                        # add noise to y_n properly according to timestep
+                        noisy_measurement = self.q_sample(y_n, t=t)  
+                        
+                        S_i, distance = measurement_cond_fn(x_t=out,
+                                                measurement=y_n,
+                                                noisy_measurement=noisy_measurement,
+                                                x_prev=S_i,
+                                                x_0_hat=x_recon)     
+                        S_i = S_i.detach()  
+                        pbar.set_postfix({'distance': distance.item()}, refresh=False)
+                        
+                    else:
+                        S_i = out.detach()     
+                        
+                        
+                        
+                    # save images 
+                    if idx==save_finer_after:
+                        save_every = 100
+                    if savename is not None and idx%save_every==0:
+                        myimage = out[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
+                        
+                        newsavename=savename.replace("_denoised.nii.gz", f"_t{idx}_denoised.nii.gz")
+                        imo = nib.Nifti1Image(myimage,affine=np.eye(4))
+                        nib.save(imo, newsavename)
+                        
+                        print(f"Saving image at t={idx} to {newsavename}") 
+                        
+                                    
+                
                 
         # return the final value of S_i
         return S_i                 

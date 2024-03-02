@@ -97,6 +97,13 @@ python3 DDM_test.py -p test -c config/DDM_test_ddpm_nocond.json
         # 10 times for every step in the last 50 steps -> extra 500 steps 
         experiments/DDM_test_240302_013756/results/
 
+        # repeating the same experiment AGAIN (10 times for every step in last 50 steps) -> with newly made code...
+        experiments/DDM_test_240302_015909/results/
+        # total insanity... i have to verify it again!!! 
+
+        
+
+
 
         # >>> ALL OF THESE ARE MUCH BETTER THEN ANY PREVIOUS STEPS!!!!
 
