@@ -199,6 +199,10 @@ class GaussianDiffusion(nn.Module):
 
     def p_sample_loop_ddpm(self, x_in, nsample, continous=False,savename=None):
         
+        
+        clip_denoised=False # since we do not clip our values on prediction - we should not clip values during inference!
+        
+        
         # define device 
         device = self.betas.device
         
@@ -207,9 +211,6 @@ class GaussianDiffusion(nn.Module):
         
         # create the first image -> pure noise -> ALTERNATIVELY add only a little bit of noise... 
         S_i = torch.randn_like(S)
-        
-        # set the condition to zeros or one - as a test. 
-        # S = torch.zeros_like(S)
         
         # define a vector of Ts from highest to lowest 
         self.num_timesteps = 2000 # i think the gradients must explore - or something like this - when t is very high... (and outside of range of trained t)
@@ -225,19 +226,16 @@ class GaussianDiffusion(nn.Module):
             t = torch.full((S.shape[0],), idx, device=device, dtype=torch.long)
                 
             # make prediction using the model 
-            model_mean, posterior_variance, posterior_log_variance = self.p_mean_variance(x=S_i,t=t, clip_denoised=True, condition_x=S)
+            model_mean, posterior_variance, posterior_log_variance = self.p_mean_variance(x=S_i,t=t, clip_denoised=clip_denoised, condition_x=S)
             
             # generate noise 
             noise = torch.randn_like(S)
             
-            # nonzero mask - as long as t != 0 
-            if idx == 0:
-                nonzero_mask = torch.zeros_like(S)
-            else:
-                nonzero_mask = torch.ones_like(S)
-            
             # predicted mean of noise + scaled down noise variance 
-            S_i = model_mean + nonzero_mask * torch.exp(0.5 * posterior_log_variance) * noise
+            if idx !=0:
+                S_i = model_mean + torch.exp(0.5 * posterior_log_variance) * noise
+            else:
+                S_i = model_mean
             
             if idx==save_finer_after:
                 save_every = 50

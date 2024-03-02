@@ -16,10 +16,10 @@
         "train": {
             "name": "Cardiac_MR",
             "dataroot": "./data/acdc/data_ED_ES/",
-            "batch_size": 5,
-            "num_workers": 10,
+            "batch_size": 1,
+            "num_workers": 1,
             "use_shuffle": true,
-            "limitto": null
+            "limitto": 1
         }
     },
     "model": {
@@ -54,9 +54,9 @@
     },
     "train": {
         "n_epoch": 10000,
-        "save_checkpoint_epoch": 100,
-        "val_freq": 20,
-        "print_freq": 20,
+        "save_checkpoint_epoch": 500,
+        "val_freq": 100,
+        "print_freq": 100,
         "loss_lambda": 20,
         "optimizer": {
             "type": "adam",

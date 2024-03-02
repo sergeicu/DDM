@@ -34,9 +34,9 @@
         "beta_schedule": {
             "train": {
                 "schedule": "linear",
-                "n_timestep": 1000,
+                "n_timestep": 2000,
                 "linear_start": 1e-6,
-                "linear_end": 2e-3
+                "linear_end": 1e-2
             }
         },
         "diffusion": {

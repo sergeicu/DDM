@@ -37,7 +37,7 @@ git checkout ddpm_only
 python3 DDM_train.py -p train -c config/DDM_train_b8_ddpm_only.json
 
 
-# [not implemented at all] test ddpm only 
+# test ddpm only 
 git checkout ddpm_only 
 python3 DDM_test.py -p test -c config/DDM_test_b8_ddpm_only.json 
 
@@ -61,15 +61,15 @@ python3 DDM_test.py -p test -c config/DDM_test_b8_ddpm_only.json
 
 
 # train with UPDATED noise schedule for 
-    1A. 1 image with condition  + all images with condition
+    1A. images with condition
 
-        python3 DDM_train.py -p train -c config/DDM_train_ddpm_wcond_1s.json
-        python3 DDM_train.py -p train -c config/DDM_train_ddpm_wcond.json
-    1B. 1 image without condition + all images without condition
-        python3 DDM_train.py -p train -c config/DDM_train_ddpm_nocond.json
-
-    # 2. all images with and without condition 
-    # 3. ES-ED images without condition... 
+        python3 DDM_train.py -p train -c config/DDM_train_ddpm_wcond_1s.json # astral-cloud 
+        python3 DDM_train.py -p train -c config/DDM_train_ddpm_wcond.json # likely-salad 
+    1B. images without condition: 
+        python3 DDM_train.py -p train -c config/DDM_train_ddpm_nocond.json # gallant sponge 
+        python3 DDM_train.py -p train -c config/DDM_train_ddpm_nocond_1s.json
+    2A. ES-ED images without condition... 
+        
 
 
 # start on e2 
