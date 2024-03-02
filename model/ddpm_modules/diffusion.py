@@ -250,12 +250,11 @@ class GaussianDiffusion(nn.Module):
         S_i = torch.randn_like(S)
         
         # define a vector of Ts from highest to lowest 
-        # self.num_timesteps = 2000 # i think the gradients must explore - or something like this - when t is very high... (and outside of range of trained t)
         pbar = tqdm(list(range(self.num_timesteps))[::-1])
         
         # save every n steps 
         save_every=500
-        save_finer_after=500
+        save_finer_after=499
         
         dps=True
         if dps: 
@@ -263,7 +262,11 @@ class GaussianDiffusion(nn.Module):
             # Forward measurement model (Ax + n)
             sigma = 0.05 # 5% noise (we are adding it to other image because it is necessary?)
             y = get_odd_even(S,select='odd') # -> i.e. select odd-even lines 
-            y_n = y + torch.randn_like(S, device=device) * sigma  # add noise based on given variance to this image (just as a start...)
+            #y_n = y + torch.randn_like(S, device=device) * sigma  # add noise based on given variance to this image (just as a start...)
+            
+            # lets just add noise where the slices are zero
+            y_n = y.clone()
+            y_n[:,:,1::2,:,:] = y[:,:,1::2,:,:] + torch.randn_like(S[:,:,1::2,:,:], device=device) * sigma  # add noise based on given variance to this image (just as a start...)
             
             if savename:
                 myimage = S[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
@@ -286,7 +289,6 @@ class GaussianDiffusion(nn.Module):
             y_n=S
 
         
-
         for idx in pbar:
             
             # required for DPS 
