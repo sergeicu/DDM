@@ -48,7 +48,70 @@ python3 DDM_test.py -p test -c config/DDM_test_b8_ddpm_only.json
 # test dps with no conditional model (DDPM trained with updated schedule)
 git checkout dps_only
 python3 DDM_test.py -p test -c config/DDM_test_ddpm_nocond.json
+    # with dps 
+    experiments/DDM_test_240302_004621/results/
 
+    # without dps 
+    experiments/DDM_test_240302_004721/results/
+
+# test dps by ONLY adding noise to bits which are zero...
+    # with dps, only adding noise to slices which are zero
+    experiments/DDM_test_240302_005655/results/
+    # -> better 
+
+# let's try by starting from idx 500
+    experiments/DDM_test_240302_010255/results
+    # -> TERRIBLE. very noisy. 
+
+
+# let's try to load a later network? 
+    experiments/DDM_test_240302_010752/results/
+    # loading after 12000 steps instead of 8000 ...(600 epochs instead of 400)
+    # possibly better - but not TOO much...
+
+
+# let's try to load the network that was trained on one image... 
+    python3 DDM_test.py -p test -c config/DDM_test_ddpm_nocond_1.json
+    experiments/DDM_test_240302_011625/results/
+    # loading after 12000 steps instead of 8000 ...(600 epochs instead of 400)
+    # possibly better - but not TOO much...
+
+    # load the network from correct patient (001.mat) -> we changed the dataloader to point to that patient always
+    experiments/DDM_test_240302_012329/results 
+        # results are much better!! 
+
+    # load the network and test on another patient (010.mat) -> should be completely random 
+    experiments/DDM_test_240302_012705/checkpoint_b8_data_ED_ES
+        # results are very good also! interesting!!! 
+            # i wish I had a 3D network that is actually good - it would be so easy to do DPS with it :( 
+
+    # let's iterate 100 times more over the network 
+        # 100 at the end (at t=0) -> extra 100 steps
+        experiments/DDM_test_240302_013631/results/
+            # >> 100 extra at the end is MUCH better than the whole schedule, but it is superceded by the other ones below 
+
+        # 5 times for every time (aka 5000 steps)
+        experiments/DDM_test_240302_013252/results/
+            # >> similar performance as the one below (10 times per step in last 50 steps)
+
+        # 10 times for every step in the last 50 steps -> extra 500 steps 
+        experiments/DDM_test_240302_013756/results/
+
+
+        # >>> ALL OF THESE ARE MUCH BETTER THEN ANY PREVIOUS STEPS!!!!
+
+    
+
+
+# let's try to train a tandem 3D network - where both even and odd slices are loaded... with single or two different noises!!! 
+
+# 
+
+# also need to train a better 3D network that actually learns something WITHOUT conditionals lol ... (these DiffuseMorph networks are totally worthless)
+
+
+
+# BTW - training 3D model failed - maybe i can learn to predict not from pure noise but from say 'noisy'? image? 
 
 
 # TODO NEXT 

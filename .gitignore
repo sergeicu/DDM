@@ -13,3 +13,4 @@ toy_sample
 *.nii.gz 
 *.png 
 config/DDM_train_HCP.json
+requirements_replicate.txt
