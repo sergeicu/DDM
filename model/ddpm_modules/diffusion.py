@@ -322,9 +322,10 @@ class GaussianDiffusion(nn.Module):
             y_n1[:,:,1::2,:,:] = y1[:,:,1::2,:,:] + torch.randn_like(S[:,:,1::2,:,:], device=device) * sigma  # add noise based on given variance to this image (just as a start...)
 
             # ADD NOISE TO ODD LINES  (THAT ARE EMPTY)
-            y_n2 = y2.clone()
-            y_n2[:,:,0::2,:,:] = y2[:,:,0::2,:,:] + torch.randn_like(S[:,:,0::2,:,:], device=device) * sigma  # add noise based on given variance to this image (just as a start...)
-
+            # y_n2 = y2.clone()
+            # y_n2[:,:,0::2,:,:] = y2[:,:,0::2,:,:] + torch.randn_like(S[:,:,0::2,:,:], device=device) * sigma  # add noise based on given variance to this image (just as a start...)
+            y_n1=S
+            y_n2=S
             
             if savename:
                 myimage = S[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()

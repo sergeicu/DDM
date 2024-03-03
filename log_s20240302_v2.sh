@@ -38,7 +38,17 @@ exp6
 - this is intermediate result... 
 
 exp7 
-- 
+- what if only one of them has odd removed and the other one is full (not odd-even)
+- experiments/DPSduo_test_240302_185734/results/
+- it seems like one of them is ok (image 1) and the other is complete skewed (image 2) 
+- need to investigate what is happening 
+
+exp8 
+- same as above but with both images being full (no odd even...)
+- experiments/DPSduo_test_240302_190241/results/
+- both qualities are pretty bad... i dont understand why... 
+- there is a problem here that i do not understand... i will need to fix it... 
+
 
 
 
