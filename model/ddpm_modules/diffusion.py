@@ -83,7 +83,7 @@ def noise_like(shape, device, repeat=False): # sv407WARNING - completely unused 
     return repeat_noise() if repeat else noise()
 
 
-def get_odd_even(data,select='odd', **kwargs):
+def get_odd_even(data,select, **kwargs):
     newdata = torch.zeros_like(data)
     assert newdata.ndim == 5
     if select=='odd':
@@ -98,7 +98,7 @@ def frobenius_norm(input_tensor):
     return torch.sqrt(torch.sum(input_tensor ** 2))
 
 def grad_and_value(x_prev, x_0_hat, measurement, **kwargs):
-    difference = measurement - get_odd_even(x_0_hat, select='odd', **kwargs) # get diff 
+    difference = measurement - get_odd_even(x_0_hat, **kwargs) # get diff 
     norm = frobenius_norm(difference) # get L2 norm between measured image (odd-even) and predicted image (also within odd-even framework)
     norm_grad = torch.autograd.grad(outputs=norm, inputs=x_prev)[0] # calculate gradient w.r.t. to L2 norm to be able to go into that direction
     
@@ -427,7 +427,7 @@ class GaussianDiffusion(nn.Module):
                                             measurement=y_n1,
                                             noisy_measurement=noisy_measurement1,
                                             x_prev=S_i,
-                                            x_0_hat=x_recon1)     
+                                            x_0_hat=x_recon1,select='odd')     
                     S_i = S_i.detach()  
                     
                     # add noise to y_n properly according to timestep
@@ -437,7 +437,7 @@ class GaussianDiffusion(nn.Module):
                                             measurement=y_n2,
                                             noisy_measurement=noisy_measurement2,
                                             x_prev=T_i,
-                                            x_0_hat=x_recon2)     
+                                            x_0_hat=x_recon2,select='even')     
                     T_i = T_i.detach()                  
                     pbar.set_postfix({'distance1': distance1.item()}, refresh=False)
                     pbar.set_postfix({'distance2': distance2.item()}, refresh=False)
