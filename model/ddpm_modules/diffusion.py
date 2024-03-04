@@ -267,9 +267,9 @@ class GaussianDiffusion(nn.Module):
         # self.num_timesteps = step 
         step=self.num_timesteps-1
         t = torch.full((S.shape[0],), step, device=device, dtype=torch.long)
-        noise = torch.randn_like(S)
-        S_i = self.q_sample(S, t=t, noise=noise) 
-        T_i = self.q_sample(T, t=t, noise=noise) 
+        noise1 = torch.randn_like(S)
+        S_i = self.q_sample(S, t=t, noise=noise1) 
+        T_i = self.q_sample(T, t=t, noise=noise1) 
         
                 
         
@@ -391,12 +391,12 @@ class GaussianDiffusion(nn.Module):
                 x_recon1, x_recon2 = x_recon
                 
                 # generate noise 
-                noise = torch.randn_like(S)
+                noise3 = torch.randn_like(S)
                 
                 # predicted mean of noise + scaled down noise variance 
                 if idx !=0:
-                    out1 = model_mean1 + torch.exp(0.5 * posterior_log_variance1) * noise
-                    out2 = model_mean2 + torch.exp(0.5 * posterior_log_variance2) * noise
+                    out1 = model_mean1 + torch.exp(0.5 * posterior_log_variance1) * noise3
+                    out2 = model_mean2 + torch.exp(0.5 * posterior_log_variance2) * noise3
                 else:
                     out1 = model_mean1
                     out2 = model_mean2
@@ -418,10 +418,10 @@ class GaussianDiffusion(nn.Module):
 
                     
                     # generate identical noise to add to both images 
-                    noise_ = torch.randn_like(S)
+                    noise4 = torch.randn_like(S)
                     
                     # add noise to y_n properly according to timestep
-                    noisy_measurement1 = self.q_sample(y_n1, t=t,noise=noise_)  
+                    noisy_measurement1 = self.q_sample(y_n1, t=t,noise=noise4)  
                     
                     S_i, distance1 = measurement_cond_fn(x_t=out1,
                                             measurement=y_n1,
@@ -431,7 +431,7 @@ class GaussianDiffusion(nn.Module):
                     S_i = S_i.detach()  
                     
                     # add noise to y_n properly according to timestep
-                    noisy_measurement2 = self.q_sample(y_n2, t=t,noise=noise_)   
+                    noisy_measurement2 = self.q_sample(y_n2, t=t,noise=noise4)   
                     
                     T_i, distance2 = measurement_cond_fn(x_t=out2,
                                             measurement=y_n2,
