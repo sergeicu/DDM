@@ -50,4 +50,9 @@ python3 DDM_test.py -p test -c config/DPSduo_test_v1.json  # weights are here: e
     log_s20240302_v2.sh
 
 
+# dpsduo1 - v2 - with updated weights after 2000 epochs 
+python3 DDM_test.py -p test -c config/DPSduo_test_v2.json 
+
+
+
 # what was the error? it was something to do with... noise schedule?? 

@@ -302,7 +302,7 @@ class GaussianDiffusion(nn.Module):
         pbar = tqdm(list(range(self.num_timesteps))[::-1])
         
         # save every n steps 
-        save_every=100
+        save_every=500
         save_finer_after=100
         
         dps=True
@@ -318,14 +318,23 @@ class GaussianDiffusion(nn.Module):
             
             # ADD NOISE TO EVEN LINES (THAT ARE EMPTY)
             # lets just add noise where the slices are zero
+            noise2=torch.randn_like(S, device=device)
             y_n1 = y1.clone()
-            y_n1[:,:,1::2,:,:] = y1[:,:,1::2,:,:] + torch.randn_like(S[:,:,1::2,:,:], device=device) * sigma  # add noise based on given variance to this image (just as a start...)
+            # y_n1[:,:,1::2,:,:] = y1[:,:,1::2,:,:] + torch.randn_like(S[:,:,1::2,:,:], device=device) * sigma  # add noise based on given variance to this image (just as a start...)
+            y_n1[:,:,1::2,:,:] = y1[:,:,1::2,:,:] + noise2[:,:,1::2,:,:] * sigma  # add noise based on given variance to this image (just as a start...)
 
             # ADD NOISE TO ODD LINES  (THAT ARE EMPTY)
-            # y_n2 = y2.clone()
+            y_n2 = y2.clone()
             # y_n2[:,:,0::2,:,:] = y2[:,:,0::2,:,:] + torch.randn_like(S[:,:,0::2,:,:], device=device) * sigma  # add noise based on given variance to this image (just as a start...)
-            y_n1=S
-            y_n2=S
+            y_n2[:,:,0::2,:,:] = y2[:,:,0::2,:,:] + noise2[:,:,0::2,:,:] * sigma  # add noise based on given variance to this image (just as a start...)
+            #y_n1=S
+            #y_n2=S
+            
+            # add noise to y_n and y_n2 
+            #noise2=torch.randn_like(S, device=device)
+            #y_n1 = S + noise2 * sigma 
+            #y_n2 = S + noise2 * sigma 
+            
             
             if savename:
                 myimage = S[0,0,:,:,:].permute(1,2,0).detach().cpu().numpy()
