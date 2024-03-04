@@ -100,7 +100,9 @@ def frobenius_norm(input_tensor):
 def grad_and_value(x_prev, x_0_hat, measurement, **kwargs):
     difference = measurement - get_odd_even(x_0_hat, **kwargs) # get diff 
     norm = frobenius_norm(difference) # get L2 norm between measured image (odd-even) and predicted image (also within odd-even framework)
-    norm_grad = torch.autograd.grad(outputs=norm, inputs=x_prev)[0] # calculate gradient w.r.t. to L2 norm to be able to go into that direction
+    # norm_grad = torch.autograd.grad(outputs=norm, inputs=x_prev)[0] # calculate gradient w.r.t. to L2 norm to be able to go into that direction
+    # with torch.no_grad():
+    norm_grad = (x_prev / x_prev.norm()).detach()
     
     return norm_grad, norm
              
@@ -374,8 +376,8 @@ class GaussianDiffusion(nn.Module):
         for idx in pbar:
             for i in range(0,repeat_every_step):     # repeat N times        
                 # required for DPS 
-                S_i = S_i.requires_grad_()    
-                T_i = T_i.requires_grad_()            
+                # S_i = S_i.requires_grad_()    
+                # T_i = T_i.requires_grad_()            
                 
                 # generate a vector of ts based on current value of t 
                 t = torch.full((S.shape[0],), idx, device=device, dtype=torch.long)
@@ -428,7 +430,7 @@ class GaussianDiffusion(nn.Module):
                                             noisy_measurement=noisy_measurement1,
                                             x_prev=S_i,
                                             x_0_hat=x_recon1,select='odd')     
-                    S_i = S_i.detach()  
+                    # S_i = S_i.detach()  
                     
                     # add noise to y_n properly according to timestep
                     noisy_measurement2 = self.q_sample(y_n2, t=t,noise=noise4)   
@@ -438,7 +440,7 @@ class GaussianDiffusion(nn.Module):
                                             noisy_measurement=noisy_measurement2,
                                             x_prev=T_i,
                                             x_0_hat=x_recon2,select='even')     
-                    T_i = T_i.detach()                  
+                    # T_i = T_i.detach()                  
                     pbar.set_postfix({'distance1': distance1.item()}, refresh=False)
                     pbar.set_postfix({'distance2': distance2.item()}, refresh=False)
                     
